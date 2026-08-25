@@ -141,6 +141,8 @@ h1 em { color: var(--lime); font-style: normal; }
 .set-controls { padding: 18px 0 3px; border-bottom: 1px solid var(--line); }
 .set-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .set-actions .button { min-height: 38px; padding: 0 13px; font-size: 10px; }
+.dose-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+.dose-buttons .button { min-height: 38px; padding: 0 12px; font-size: 10px; }
 .empty-state { padding: 28px 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .workout-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 25px; }
 .zero-button { color: var(--orange); border-color: rgba(255,154,92,.45); }
@@ -159,6 +161,9 @@ h1 em { color: var(--lime); font-style: normal; }
 /* Analytics */
 .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 25px; }
 .analytics-panel { background: var(--panel); padding: 26px 30px; }
+.assessment-change-panel { margin-top: 10px; }
+.achievement-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.achievement-chip { border: 1px solid rgba(205,255,92,.4); color: var(--lime); padding: 9px 11px; font: 10px var(--mono); text-transform: uppercase; letter-spacing: .06em; }
 .wellness-card { margin-top: 10px; padding: 27px 30px; border-left: 3px solid var(--blue); }
 .wellness-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 22px; }
 .wellness-check { display: flex; gap: 9px; align-items: center; color: var(--muted); font: 11px var(--mono); }

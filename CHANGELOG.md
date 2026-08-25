@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.0-rc.1 — 2026-08-26
+
+### Added
+
+- Plan-derived SHORT/RESCUE and MINIMUM workout doses with explicit frontend dose selection.
+- Movement-pattern coverage and assessment/history/recovery-aware exercise difficulty and volume selection.
+- Reassessment-driven plan refresh, performance-change and fitness-progress summaries, weekly-review recommendations, and local discipline achievements.
+- Exercise ROM-rule metadata with additive SQLite migration and pose calibration edge-case coverage.
+
+### Verified
+
+- Backend/AI/pose tests, Ruff, compileall, frontend Vitest, TypeScript, ESLint, Next build, and Playwright smoke are the release-candidate gates; final clean-install evidence is recorded in the Phase 12 report.
+
 ## 1.0.0-alpha.1 — 2026-08-26
 
 ### Added

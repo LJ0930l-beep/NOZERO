@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS exercises (
     restriction_tags TEXT NOT NULL,
     pose_supported INTEGER NOT NULL,
     pose_rules TEXT NOT NULL,
+    rom_rules TEXT NOT NULL,
     common_mistakes TEXT NOT NULL,
     coaching_cues TEXT NOT NULL,
     version TEXT NOT NULL,
@@ -164,6 +165,9 @@ class Database:
     def initialize(self) -> None:
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(exercises)").fetchall()}
+            if "rom_rules" not in columns:
+                connection.execute("ALTER TABLE exercises ADD COLUMN rom_rules TEXT NOT NULL DEFAULT '{}'")
 
     def session(self) -> Iterator[sqlite3.Connection]:
         connection = self.connect()

@@ -36,6 +36,11 @@ export const DEMO_WORKOUT: DailyWorkout = {
     { exercise_id: "push_knee", name: "Knee Push-up", sets: 3, reps: 8, duration_seconds: null, rest_seconds: 60, intent: "Brace the ribs" },
     { exercise_id: "core_plank", name: "Plank", sets: 2, reps: null, duration_seconds: 30, rest_seconds: 30, intent: "Breathe behind the brace" },
   ],
+  short_workout: [
+    { exercise_id: "squat_bodyweight", name: "Bodyweight Squat", sets: 2, reps: 10, duration_seconds: null, rest_seconds: 30, intent: "Keep the whole foot grounded" },
+    { exercise_id: "push_knee", name: "Knee Push-up", sets: 2, reps: 8, duration_seconds: null, rest_seconds: 30, intent: "Brace the ribs" },
+    { exercise_id: "core_plank", name: "Plank", sets: 1, reps: null, duration_seconds: 25, rest_seconds: 30, intent: "Breathe behind the brace" },
+  ],
   minimum_workout: [
     { exercise_id: "squat_bodyweight", name: "Bodyweight Squat", sets: 1, reps: 8, duration_seconds: null, rest_seconds: 20, intent: "Keep the whole foot grounded", minimum: true },
     { exercise_id: "core_plank", name: "Plank", sets: 1, reps: null, duration_seconds: 20, rest_seconds: 20, intent: "Breathe behind the brace", minimum: true },
@@ -49,6 +54,9 @@ export const DEMO_DASHBOARD: Dashboard = {
   consistency: { "28": { completed: 24, planned: 28, percentage: 86 } },
   total_training_minutes: 312,
   fitness_levels: { upper_body: "F2", lower_body: "F3", core: "F2", cardio: "F2", mobility: "F2" },
+  assessment_history: [],
+  performance_change: {},
+  achievements: ["first_session", "seven_day_streak"],
   discipline_level: "D3 Focused",
   xp: 1240,
   next_workout: DEMO_WORKOUT,

@@ -18,6 +18,10 @@ def assess_recovery(
     fatigue: int | None,
     session_rpe: float | None,
     weekly_volume_minutes: int = 0,
+    muscle_group_exposure_minutes: int = 0,
+    training_frequency: int = 0,
+    completion_rate: float = 1.0,
+    enjoyment: int | None = None,
 ) -> RecoveryResult:
     pain_value = pain or 0
     soreness_value = soreness or 0
@@ -32,14 +36,38 @@ def assess_recovery(
         return RecoveryResult(
             "REDUCED", "pain, soreness, or fatigue is high", "reduce volume and avoid the affected movement pattern"
         )
+    if completion_rate < 0.5 and (soreness_value >= 6 or fatigue_value >= 6):
+        return RecoveryResult(
+            "REDUCED",
+            "low completion combined with fatigue or soreness suggests the dose is not sustainable",
+            "reduce the next dose and preserve the highest-value movement pattern",
+        )
     if soreness_value >= 6 or fatigue_value >= 6 or (session_rpe is not None and session_rpe >= 9):
         return RecoveryResult(
             "SWAP_FOCUS",
             "moderate fatigue or soreness suggests changing emphasis",
             "train a fresh pattern or use a short session",
         )
+    if enjoyment is not None and enjoyment <= 2 and fatigue_value >= 4:
+        return RecoveryResult(
+            "SWAP_FOCUS",
+            "low enjoyment with fatigue suggests a friction or recovery problem",
+            "change focus and use a lower-friction short session",
+        )
     if weekly_volume_minutes >= 240:
         return RecoveryResult("REDUCED", "recent weekly volume is high", "cap the next session and prioritize recovery")
+    if muscle_group_exposure_minutes >= 120 and training_frequency >= 3:
+        return RecoveryResult(
+            "REDUCED",
+            "recent muscle-group exposure and frequency are high",
+            "swap focus and cap exposure before adding more work",
+        )
+    if training_frequency >= 6:
+        return RecoveryResult(
+            "REDUCED",
+            "training frequency is high across the recent window",
+            "protect a recovery day before the next hard session",
+        )
     return RecoveryResult(
         "NORMAL", "no recovery signal exceeds the conservative threshold", "continue the planned session"
     )

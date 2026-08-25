@@ -53,6 +53,8 @@ def test_core_flow_onboards_assesses_plans_and_records_feedback() -> None:
         plan = client.post("/api/v1/plans", json={"user_id": user_id, "cycle_days": 7})
         assert plan.status_code == 201
         workout = plan.json()["weekly_plan"][0]
+        assert workout["short_workout"]
+        assert workout["minimum_workout"]
         feedback = client.post(
             "/api/v1/workouts/feedback",
             json={
@@ -141,10 +143,12 @@ def test_reassessment_and_local_data_controls() -> None:
             "mobility_score": 45,
         }
         assert client.post("/api/v1/assessments", json=first).status_code == 201
+        assert client.post("/api/v1/plans", json={"user_id": user_id, "cycle_days": 28}).status_code == 201
         second = {**first, "push_up_reps": 12, "plank_seconds": 60}
         reassessment = client.post("/api/v1/reassessments", json=second)
         assert reassessment.status_code == 201
         assert reassessment.json()["changes"]["upper_body"]["delta"] > 0
+        assert reassessment.json()["plan"]["weekly_plan"]
         exported = client.get(f"/api/v1/users/{user_id}/data/export")
         assert exported.status_code == 200
         assert len(exported.json()["assessments"]) == 2

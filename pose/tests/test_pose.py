@@ -1,3 +1,5 @@
+import pytest
+
 from pose.calibration.checker import calibrate_camera
 from pose.counters.state_machine import RepCounter, update_squat
 from pose.models import CalibrationInput, Landmark
@@ -24,3 +26,22 @@ def test_calibration_returns_unable_when_camera_is_bad() -> None:
 def test_counter_admits_low_visibility() -> None:
     result = update_squat(RepCounter("squat"), _squat_sample(90, visibility=0.2))
     assert result.confidence == "UNABLE_TO_DETERMINE"
+
+
+@pytest.mark.parametrize(
+    ("values", "expected"),
+    [
+        (CalibrationInput(0.95, 0.85, 0.85, 0.85, 0.85, 30, 0.85), "GOOD"),
+        (CalibrationInput(0.95, 0.45, 0.85, 0.85, 0.85, 30, 0.85), "POTENTIAL_ISSUE"),
+        (CalibrationInput(0.95, 0.85, 0.45, 0.85, 0.85, 30, 0.85), "POTENTIAL_ISSUE"),
+        (CalibrationInput(0.95, 0.85, 0.85, 0.45, 0.85, 30, 0.85), "POTENTIAL_ISSUE"),
+        (CalibrationInput(0.95, 0.85, 0.85, 0.85, 0.45, 30, 0.85), "POTENTIAL_ISSUE"),
+        (CalibrationInput(0.95, 0.85, 0.85, 0.85, 0.85, 10, 0.85), "POTENTIAL_ISSUE"),
+        (CalibrationInput(0.45, 0.85, 0.85, 0.85, 0.85, 30, 0.85), "UNABLE_TO_DETERMINE"),
+        (CalibrationInput(0.95, 0.85, 0.85, 0.85, 0.85, 30, 0.45), "UNABLE_TO_DETERMINE"),
+    ],
+)
+def test_calibration_matrix_never_promotes_bad_conditions_to_good(
+    values: CalibrationInput, expected: str
+) -> None:
+    assert calibrate_camera(values).state == expected

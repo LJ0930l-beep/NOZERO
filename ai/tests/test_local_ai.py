@@ -75,9 +75,15 @@ def test_weekly_review_uses_only_structured_session_facts() -> None:
         [
             {"status": "FULL", "workout_plan": {"duration_minutes": 20}},
             {"status": "RECOVERY", "workout_plan": {"duration_minutes": 10}},
-            {"status": "ZERO", "workout_plan": {"duration_minutes": 0}},
-        ]
+            {"status": "ZERO", "workout_plan": {"duration_minutes": 20}},
+        ],
+        [
+            {"dimensions": {"upper_body": "F1", "core": "F2"}},
+            {"dimensions": {"upper_body": "F3", "core": "F2"}},
+        ],
     )
     assert metrics["sessions_completed"] == 2
     assert metrics["training_time_minutes"] == 30
     assert metrics["zero_days"] == 1
+    assert metrics["performance_change"]["upper_body"]["delta"] == 2
+    assert metrics["fitness_progress"]["improved_dimensions"] == ["upper_body"]

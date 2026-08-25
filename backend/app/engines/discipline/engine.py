@@ -73,3 +73,21 @@ def discipline_level(total_xp: int) -> str:
     if total_xp >= 300:
         return "D2 Consistent"
     return "D1 Starter"
+
+
+def achievements(sessions: list[dict[str, object]], total_xp: int) -> list[str]:
+    """Small, local milestones; achievements never change training or safety rules."""
+    success = [item for item in sessions if str(item.get("status")) in SUCCESS_STATES]
+    _, longest = streaks(sessions)
+    earned: list[str] = []
+    if success:
+        earned.append("first_session")
+    if any(str(item.get("status")) == "MINIMUM" for item in sessions):
+        earned.append("rescue_kept")
+    if any(str(item.get("status")) == "RECOVERY" for item in sessions):
+        earned.append("recovery_is_training")
+    if longest >= 7:
+        earned.append("seven_day_streak")
+    if total_xp >= 1000:
+        earned.append("one_thousand_xp")
+    return earned

@@ -8,10 +8,11 @@ import { apiFetch, DEMO_WORKOUT, readUserId } from "../../lib/api";
 import type { DailyWorkout } from "../../lib/types";
 
 type Feedback = { rpe: number; rir: number; soreness: number; pain: number; fatigue: number; enjoyment: number; notes: string };
+type DoseMode = "full" | "short" | "minimum";
 
 export default function WorkoutPage() {
   const [workout, setWorkout] = useState<DailyWorkout>(DEMO_WORKOUT);
-  const [minimum, setMinimum] = useState(false);
+  const [doseMode, setDoseMode] = useState<DoseMode>("full");
   const [mode, setMode] = useState<"manual" | "camera">("manual");
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
@@ -22,12 +23,16 @@ export default function WorkoutPage() {
   const [completedSets, setCompletedSets] = useState<Record<number, number>>({});
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState<Feedback>({ rpe: 7, rir: 2, soreness: 2, pain: 0, fatigue: 3, enjoyment: 7, notes: "" });
-  const blocks = useMemo(() => (minimum ? workout.minimum_workout : workout.blocks), [minimum, workout]);
+  const blocks = useMemo(() => {
+    if (doseMode === "minimum") return workout.minimum_workout;
+    if (doseMode === "short") return workout.short_workout;
+    return workout.blocks;
+  }, [doseMode, workout]);
 
   useEffect(() => {
     setActiveBlock(0);
     setCompletedSets({});
-  }, [minimum, workout]);
+  }, [doseMode, workout]);
 
   useEffect(() => {
     const userId = readUserId();
@@ -86,7 +91,7 @@ export default function WorkoutPage() {
           body: JSON.stringify({
             user_id: userId,
             workout_date: workout.date,
-            status: minimum ? "MINIMUM" : workout.kind === "RECOVERY" ? "RECOVERY" : "FULL",
+            status: doseMode === "full" ? (workout.kind === "RECOVERY" ? "RECOVERY" : "FULL") : "MINIMUM",
             workout_plan: workout,
             session_rpe: feedback.rpe,
             rir: feedback.rir,
@@ -106,7 +111,7 @@ export default function WorkoutPage() {
     setError("");
   }
 
-  const statusLabel = zeroDay ? "ZERO" : minimum ? "MINIMUM" : workout.kind === "RECOVERY" ? "RECOVERY" : "FULL";
+  const statusLabel = zeroDay ? "ZERO" : doseMode === "short" ? "SHORT / MINIMUM" : doseMode === "minimum" ? "MINIMUM" : workout.kind === "RECOVERY" ? "RECOVERY" : "FULL";
   return (
     <AppShell>
       <div className="workout-page">
@@ -122,7 +127,7 @@ export default function WorkoutPage() {
         </header>
         <div className="workout-layout">
           <section className="workout-list">
-            <div className="panel-heading"><div><p className="eyebrow">{workout.focus}</p><h2>{minimum ? "Minimum workout" : workout.title}</h2></div><span className="state-tag tag-lime">{minimum ? "6 MIN" : `${workout.duration_minutes} MIN`}</span></div>
+            <div className="panel-heading"><div><p className="eyebrow">{workout.focus}</p><h2>{doseMode === "minimum" ? "Minimum workout" : doseMode === "short" ? "Rescue workout" : workout.title}</h2></div><span className="state-tag tag-lime">{doseMode === "minimum" ? "6 MIN" : doseMode === "short" ? "12 MIN" : `${workout.duration_minutes} MIN`}</span></div>
             {mode === "manual" ? <>
               {blocks.length ? blocks.map((block, index) => {
                 const completed = completedSets[index] ?? 0;
@@ -132,7 +137,7 @@ export default function WorkoutPage() {
               }) : <div className="empty-state">Planned recovery. Use the timer for a gentle reset, or log the day as complete.</div>}
               {blocks.length > 0 && <div className="set-controls"><div className="field-help">Current block: {activeBlock + 1} / {blocks.length}</div><div className="set-actions"><button className="button button-primary" onClick={markSetComplete}>MARK SET COMPLETE ↗</button><button className="button button-secondary" onClick={() => setActiveBlock((current) => Math.max(0, current - 1))}>← PREVIOUS</button><button className="button button-secondary" onClick={nextExercise}>NEXT EXERCISE →</button></div></div>}
             </> : <CameraPanel />}
-            <div className="workout-buttons"><button className="button button-primary" onClick={() => setRunning((value) => !value)}>{running ? "PAUSE TIMER" : "START TIMER"}<span>{running ? "Ⅱ" : "▶"}</span></button><button className="button button-secondary" onClick={() => setMinimum((value) => !value)}>{minimum ? "USE FULL PLAN" : "SWITCH TO MINIMUM"}</button><button className="button button-secondary" onClick={finishSession} disabled={recorded}>{done ? "FEEDBACK BELOW" : "FINISH SESSION"}</button><button className="button button-secondary zero-button" onClick={recordZeroDay} disabled={recorded}>LOG ZERO DAY</button></div>
+            <div className="workout-buttons"><button className="button button-primary" onClick={() => setRunning((value) => !value)}>{running ? "PAUSE TIMER" : "START TIMER"}<span>{running ? "Ⅱ" : "▶"}</span></button><div className="dose-buttons"><button className={`button ${doseMode === "full" ? "button-primary" : "button-secondary"}`} onClick={() => setDoseMode("full")}>FULL</button><button className={`button ${doseMode === "short" ? "button-primary" : "button-secondary"}`} onClick={() => setDoseMode("short")}>RESCUE</button><button className={`button ${doseMode === "minimum" ? "button-primary" : "button-secondary"}`} onClick={() => setDoseMode("minimum")}>MINIMUM</button></div><button className="button button-secondary" onClick={finishSession} disabled={recorded}>{done ? "FEEDBACK BELOW" : "FINISH SESSION"}</button><button className="button button-secondary zero-button" onClick={recordZeroDay} disabled={recorded}>LOG ZERO DAY</button></div>
           </section>
           <aside className="camera-card" id="minimum"><p className="eyebrow">Signal check</p><div className="camera-frame"><div><span>{mode === "camera" ? "POSE / CONFIDENCE REQUIRED" : "MANUAL MODE READY"}</span><p>{mode === "camera" ? "The browser preview is local only. If framing, lighting, or confidence is not enough, NOZEERO will say unable to determine." : "No camera required. Count your reps, keep the range comfortable, and use the cues beside each block."}</p></div></div><p className="field-help">Raw video is not saved or uploaded by default. Only the derived result is eligible for storage.</p></aside>
         </div>

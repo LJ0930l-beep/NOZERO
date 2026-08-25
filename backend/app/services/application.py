@@ -13,7 +13,7 @@ from ai.ollama.service import LocalAIService
 from backend.app.core.config import Settings
 from backend.app.core.errors import ResourceNotFoundError, SafetyBlockedError
 from backend.app.engines.assessment.engine import assess_dimensions
-from backend.app.engines.discipline.engine import consistency, discipline_level, streaks, xp_for_status
+from backend.app.engines.discipline.engine import achievements, consistency, discipline_level, streaks, xp_for_status
 from backend.app.engines.recovery.engine import assess_recovery
 from backend.app.engines.safety.engine import screen_safety
 from backend.app.engines.training.engine import generate_cycle
@@ -120,7 +120,19 @@ class ApplicationService:
                 "after": current_level,
                 "delta": int(current_level[1]) - int(before[1]),
             }
-        return {"assessment": current, "changes": changes, "next_action": "update plan from the new dimensions"}
+        updated_plan = None
+        if self.repository.latest_cycle(request.user_id):
+            updated_plan = self.generate_plan(PlanRequest(user_id=request.user_id, cycle_days=28))
+        return {
+            "assessment": current,
+            "changes": changes,
+            "plan": updated_plan,
+            "next_action": (
+                "updated the current plan from the new dimensions"
+                if updated_plan
+                else "generate a plan from the new dimensions"
+            ),
+        }
 
     def generate_plan(self, request: PlanRequest) -> dict[str, Any]:
         user = self.get_user_or_raise(request.user_id)
@@ -131,12 +143,32 @@ class ApplicationService:
             raise ValueError("complete the multidimensional assessment before generating a plan")
         start = request.start_date or date.today()
         exercises = self.exercises_for_user(request.user_id)
+        recent_sessions = self.repository.list_sessions(request.user_id)
+        weekly_volume = sum(
+            int(item.get("workout_plan", {}).get("duration_minutes", 0))
+            for item in recent_sessions[-7:]
+            if isinstance(item.get("workout_plan"), dict)
+        )
+        latest_session = recent_sessions[-1] if recent_sessions else {}
+        recovery = assess_recovery(
+            latest_session.get("soreness"),
+            latest_session.get("pain"),
+            latest_session.get("fatigue"),
+            latest_session.get("session_rpe"),
+            weekly_volume,
+            muscle_group_exposure_minutes=weekly_volume,
+            training_frequency=len(recent_sessions[-7:]),
+            completion_rate=1.0 if latest_session.get("status") in {"FULL", "RECOVERY"} else 0.5,
+            enjoyment=latest_session.get("enjoyment"),
+        )
         weekly_plan = generate_cycle(
             profile=user,
             exercises=exercises,
             assessment=assessment["dimensions"],
             start_date=start,
             cycle_days=request.cycle_days,
+            recent_sessions=recent_sessions,
+            recovery_status=recovery.status,
         )
         return self.repository.create_cycle(
             request.user_id,
@@ -169,7 +201,17 @@ class ApplicationService:
             for item in recent[-7:]
             if isinstance(item.get("workout_plan"), dict)
         )
-        recovery = assess_recovery(request.soreness, request.pain, request.fatigue, request.session_rpe, weekly_volume)
+        recovery = assess_recovery(
+            request.soreness,
+            request.pain,
+            request.fatigue,
+            request.session_rpe,
+            weekly_volume,
+            muscle_group_exposure_minutes=weekly_volume,
+            training_frequency=len(recent[-7:]),
+            completion_rate={"FULL": 1.0, "MINIMUM": 0.5, "RECOVERY": 1.0, "ZERO": 0.0}.get(request.status, 0.0),
+            enjoyment=request.enjoyment,
+        )
         status = request.status
         if request.pain is not None and request.pain >= 4:
             status = "RECOVERY"
@@ -212,6 +254,7 @@ class ApplicationService:
     def dashboard(self, user_id: str) -> dict[str, Any]:
         user = self.get_user_or_raise(user_id)
         sessions = self.repository.list_sessions(user_id)
+        assessments = self.repository.list_assessments(user_id)
         current_streak, longest_streak = streaks(sessions)
         assessment = self.repository.latest_assessment(user_id)
         levels = (
@@ -222,7 +265,8 @@ class ApplicationService:
         total_minutes = sum(
             int(item.get("workout_plan", {}).get("duration_minutes", 0))
             for item in sessions
-            if isinstance(item.get("workout_plan"), dict)
+            if item.get("status") in {"FULL", "MINIMUM", "RECOVERY"}
+            and isinstance(item.get("workout_plan"), dict)
         )
         return {
             "user": public_user(user),
@@ -231,17 +275,24 @@ class ApplicationService:
             "consistency": consistency(sessions),
             "total_training_minutes": total_minutes,
             "fitness_levels": levels,
+            "assessment_history": assessments,
+            "performance_change": WeeklyReview.compare_assessments(assessments),
             "discipline_level": discipline_level(self.repository.total_xp(user_id)),
+            "achievements": achievements(sessions, self.repository.total_xp(user_id)),
             "xp": self.repository.total_xp(user_id),
             "next_workout": self.today_workout(user_id),
         }
 
     def weekly_review(self, user_id: str) -> dict[str, Any]:
         self.get_user_or_raise(user_id)
-        metrics = WeeklyReview.summarize(self.repository.list_sessions(user_id))
+        sessions = self.repository.list_sessions(user_id)
+        metrics = WeeklyReview.summarize(sessions, self.repository.list_assessments(user_id))
+        next_recommendation = "progress one variable from recent quality completion"
+        if metrics["recovery_days"] or metrics["minimum_days"] > metrics["full_days"]:
+            next_recommendation = "keep the plan conservative and protect recovery before adding volume"
         return {
             **metrics,
-            "next_week_recommendation": "keep the plan and adjust one variable from recent recovery feedback",
+            "next_week_recommendation": next_recommendation,
         }
 
     def export_data(self, user_id: str) -> dict[str, Any]:

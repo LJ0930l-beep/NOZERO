@@ -29,7 +29,9 @@ export default function AssessmentPage() {
     setSaving(true); setError("");
     try {
       await apiFetch(reassessment ? "/api/v1/reassessments" : "/api/v1/assessments", { method: "POST", body: JSON.stringify({ user_id: userId, ...values }) });
-      await apiFetch("/api/v1/plans", { method: "POST", body: JSON.stringify({ user_id: userId, cycle_days: 28 }) });
+      if (!reassessment) {
+        await apiFetch("/api/v1/plans", { method: "POST", body: JSON.stringify({ user_id: userId, cycle_days: 28 }) });
+      }
       router.push("/");
     } catch (submitError) { setError(submitError instanceof Error ? submitError.message : "Assessment could not be saved."); }
     finally { setSaving(false); }

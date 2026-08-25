@@ -93,9 +93,9 @@ class SQLiteRepository:
             difficulty_level, equipment_modes, space_requirement, noise_level,
             impact_level, execution_type, rep_range, duration_range, recommended_sets,
             recommended_rpe, recommended_rir, regression_ids, progression_ids,
-            contraindication_tags, restriction_tags, pose_supported, pose_rules,
+            contraindication_tags, restriction_tags, pose_supported, pose_rules, rom_rules,
             common_mistakes, coaching_cues, version, source, review_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         with self.database.connect() as connection:
             for exercise in exercises:
@@ -125,6 +125,7 @@ class SQLiteRepository:
                         _dump(exercise.get("restriction_tags", [])),
                         int(exercise.get("pose_supported", False)),
                         _dump(exercise.get("pose_rules", {})),
+                        _dump(exercise.get("rom_rules", {})),
                         _dump(exercise.get("common_mistakes", [])),
                         _dump(exercise.get("coaching_cues", [])),
                         exercise.get("version", "1.0.0"),
@@ -157,12 +158,14 @@ class SQLiteRepository:
             item["contraindication_tags"] = _load(item["contraindication_tags"], [])
             item["restriction_tags"] = _load(item["restriction_tags"], [])
             item["pose_rules"] = _load(item["pose_rules"], {})
+            item["rom_rules"] = _load(item.get("rom_rules"), {})
             item["common_mistakes"] = _load(item["common_mistakes"], [])
             item["coaching_cues"] = _load(item["coaching_cues"], [])
             item["pose_supported"] = bool(item["pose_supported"])
             if equipment_mode and equipment_mode not in item["equipment_modes"]:
                 continue
-            if available_space and item["space_requirement"] == "LARGE" and available_space != "LARGE":
+            space_rank = {"SMALL": 1, "MEDIUM": 2, "LARGE": 3}
+            if available_space and space_rank.get(item["space_requirement"], 2) > space_rank.get(available_space, 2):
                 continue
             if noise_preference == "QUIET" and item["noise_level"] == "HIGH":
                 continue

@@ -20,12 +20,18 @@ class GoalProfile:
 
 GOAL_PROFILES: dict[str, GoalProfile] = {
     "fat_loss": GoalProfile(
-        (0, 1, 3, 5), "Strength + conditioning", ("Squat", "Core", "Cardio", "Horizontal Push"), 3, True, "moderate", 2
+        (0, 1, 3, 5),
+        "Strength + conditioning",
+        ("Squat", "Lunge", "Hip Hinge", "Core", "Cardio", "Horizontal Push"),
+        3,
+        True,
+        "moderate",
+        2,
     ),
     "abs": GoalProfile(
         (0, 2, 4, 6),
         "Core development + conditioning",
-        ("Core", "Anti Extension", "Squat", "Cardio"),
+        ("Core Flexion", "Anti Extension", "Squat", "Cardio"),
         3,
         True,
         "moderate",
@@ -34,7 +40,7 @@ GOAL_PROFILES: dict[str, GoalProfile] = {
     "muscle_gain": GoalProfile(
         (0, 1, 3, 4),
         "Progressive resistance",
-        ("Horizontal Push", "Pull", "Squat", "Hip Extension", "Core"),
+        ("Horizontal Push", "Pull", "Squat", "Hip Hinge", "Hip Extension", "Core"),
         4,
         False,
         "challenging",
@@ -43,7 +49,7 @@ GOAL_PROFILES: dict[str, GoalProfile] = {
     "body_shaping": GoalProfile(
         (0, 1, 3, 5),
         "Balanced resistance",
-        ("Squat", "Horizontal Push", "Hip Extension", "Core"),
+        ("Squat", "Lunge", "Hip Hinge", "Horizontal Push", "Core"),
         3,
         False,
         "moderate",
@@ -52,7 +58,7 @@ GOAL_PROFILES: dict[str, GoalProfile] = {
     "strength": GoalProfile(
         (0, 1, 3, 5),
         "Strength practice",
-        ("Squat", "Horizontal Push", "Pull", "Vertical Push", "Core"),
+        ("Squat", "Hip Hinge", "Horizontal Push", "Pull", "Vertical Push", "Core"),
         4,
         False,
         "challenging",
@@ -62,13 +68,19 @@ GOAL_PROFILES: dict[str, GoalProfile] = {
         (0, 2, 4, 6), "Cardio + movement", ("Cardio", "Squat", "Core", "Mobility"), 2, True, "moderate", 2
     ),
     "core_strength": GoalProfile(
-        (0, 1, 3, 5), "Core capacity", ("Anti Extension", "Lateral Core", "Core", "Squat"), 3, False, "moderate", 2
+        (0, 1, 3, 5),
+        "Core capacity",
+        ("Anti Extension", "Core Flexion", "Lateral Core", "Squat"),
+        3,
+        False,
+        "moderate",
+        2,
     ),
     "mobility": GoalProfile(
         (0, 2, 4), "Mobility + control", ("Mobility", "Hip Extension", "Core", "Squat"), 2, False, "easy", 2
     ),
     "build_exercise_habit": GoalProfile(
-        (0, 2, 4), "Low-friction habit", ("Squat", "Horizontal Push", "Core", "Mobility"), 2, False, "easy", 2
+        (0, 2, 4), "Low-friction habit", ("Squat", "Horizontal Push", "Core Flexion", "Mobility"), 2, False, "easy", 2
     ),
 }
 
@@ -80,11 +92,100 @@ def _days_for_user(profile: GoalProfile, available_days: int) -> tuple[int, ...]
     return profile.schedule[:requested]
 
 
-def _pick_exercise(exercises: list[dict[str, Any]], pattern: str, used: set[str]) -> dict[str, Any] | None:
+PATTERN_DIMENSIONS = {
+    "Horizontal Push": "upper_body",
+    "Vertical Push": "upper_body",
+    "Pull": "upper_body",
+    "Squat": "lower_body",
+    "Lunge": "lower_body",
+    "Hip Hinge": "lower_body",
+    "Hip Extension": "lower_body",
+    "Core": "core",
+    "Core Flexion": "core",
+    "Anti Extension": "core",
+    "Anti Rotation": "core",
+    "Lateral Core": "core",
+    "Cardio": "cardio",
+    "Mobility": "mobility",
+}
+
+SECONDARY_PATTERNS = {
+    "abs": ("Core Flexion", "Anti Extension", "Lateral Core", "Core"),
+    "chest": ("Horizontal Push",),
+    "back": ("Pull", "Hip Hinge"),
+    "shoulders": ("Vertical Push", "Horizontal Push"),
+    "arms": ("Horizontal Push", "Pull"),
+    "glutes": ("Hip Extension", "Lunge", "Squat"),
+    "legs": ("Squat", "Lunge", "Hip Hinge"),
+    "mobility": ("Mobility",),
+}
+
+
+def _focus_order(goal_profile: GoalProfile, secondary_focus: str | None) -> tuple[str, ...]:
+    preferred = SECONDARY_PATTERNS.get(str(secondary_focus or "").lower(), ())
+    if not preferred:
+        return goal_profile.focus_order
+    ordered = list(goal_profile.focus_order)
+    for pattern in reversed(preferred):
+        if pattern in ordered:
+            ordered.remove(pattern)
+        ordered.insert(0, pattern)
+    return tuple(ordered)
+
+
+def _difficulty_cap(assessment: dict[str, str] | None, pattern: str) -> int | None:
+    if not assessment:
+        return None
+    dimension = PATTERN_DIMENSIONS.get(pattern)
+    levels = [assessment.get(dimension)] if dimension else list(assessment.values())
+    numeric = [int(level[1]) for level in levels if isinstance(level, str) and len(level) == 2 and level[0] == "F"]
+    return max(1, min(5, round(sum(numeric) / len(numeric)))) if numeric else None
+
+
+def _assessment_average(assessment: dict[str, str] | None) -> float:
+    if not assessment:
+        return 3.0
+    numeric = [
+        int(level[1])
+        for level in assessment.values()
+        if isinstance(level, str) and len(level) == 2 and level[0] == "F"
+    ]
+    return sum(numeric) / len(numeric) if numeric else 3.0
+
+
+def _history_signal(recent_sessions: list[dict[str, Any]] | None) -> str:
+    if not recent_sessions:
+        return "MAINTAIN"
+    latest = recent_sessions[-1]
+    if (
+        latest.get("status") == "RECOVERY"
+        or int(latest.get("pain") or 0) >= 4
+        or int(latest.get("fatigue") or 0) >= 8
+    ):
+        return "REGRESS"
+    if (
+        latest.get("status") == "FULL"
+        and float(latest.get("session_rpe") or 10) <= 8
+        and float(latest.get("rir") or 0) >= 1
+        and int(latest.get("pain") or 0) <= 1
+    ):
+        return "PROGRESS"
+    return "MAINTAIN"
+
+
+def _pick_exercise(
+    exercises: list[dict[str, Any]], pattern: str, used: set[str], difficulty_cap: int | None = None
+) -> dict[str, Any] | None:
     candidates = [item for item in exercises if item["movement_pattern"] == pattern and item["id"] not in used]
     if not candidates:
         candidates = [item for item in exercises if item["movement_pattern"] == pattern]
-    return candidates[0] if candidates else None
+    if not candidates:
+        return None
+    ordered = sorted(candidates, key=lambda item: (int(item.get("difficulty_level", 1)), item["id"]))
+    if difficulty_cap is None:
+        return ordered[0]
+    eligible = [item for item in ordered if int(item.get("difficulty_level", 1)) <= difficulty_cap]
+    return eligible[-1] if eligible else ordered[0]
 
 
 def _block(exercise: dict[str, Any], sets: int, intensity: str, minimum: bool = False) -> dict[str, Any]:
@@ -143,19 +244,43 @@ def build_minimum_workout(workout: dict[str, Any], block_count: int = 2) -> list
     return minimum
 
 
+def build_short_workout(workout: dict[str, Any], block_count: int = 3) -> list[dict[str, Any]]:
+    """Create a plan-derived rescue dose between the full and minimum versions."""
+    if workout.get("kind") == "RECOVERY":
+        return list(workout.get("blocks", []))[:1]
+    blocks = list(workout.get("blocks", []))[: max(1, block_count)]
+    short: list[dict[str, Any]] = []
+    for block in blocks:
+        reduced = dict(block)
+        reduced["sets"] = max(1, (int(reduced.get("sets", 1)) + 1) // 2)
+        if reduced.get("reps") is not None:
+            reduced["reps"] = min(int(reduced["reps"]), 12)
+        if reduced.get("duration_seconds") is not None:
+            reduced["duration_seconds"] = min(int(reduced["duration_seconds"]), 60)
+        reduced["rest_seconds"] = max(30, int(reduced.get("rest_seconds", 60)) // 2)
+        reduced["minimum"] = False
+        short.append(reduced)
+    return short
+
+
 def generate_cycle(
     profile: dict[str, Any],
     exercises: list[dict[str, Any]],
     assessment: dict[str, str] | None,
     start_date: date,
     cycle_days: int,
+    recent_sessions: list[dict[str, Any]] | None = None,
+    recovery_status: str = "NORMAL",
 ) -> list[dict[str, Any]]:
     goal = str(profile.get("primary_goal", "build_exercise_habit"))
     goal_profile = GOAL_PROFILES.get(goal, GOAL_PROFILES["build_exercise_habit"])
+    focus_order = _focus_order(goal_profile, profile.get("secondary_focus"))
     training_days = set(_days_for_user(goal_profile, int(profile.get("available_training_days", 3))))
     session_minutes = int(profile.get("session_duration_minutes", 20))
     noise_preference = profile.get("noise_preference", "NORMAL")
     jumping_allowed = bool(profile.get("jumping_allowed", True))
+    history_signal = _history_signal(recent_sessions)
+    recovery_reduction = recovery_status in {"REDUCED", "RECOVERY", "SWAP_FOCUS"}
     selected_days: list[dict[str, Any]] = []
     for index in range(cycle_days):
         current_date = start_date + timedelta(days=index)
@@ -171,12 +296,18 @@ def generate_cycle(
                 "blocks": [],
             }
             recovery["minimum_workout"] = []
+            recovery["short_workout"] = []
             selected_days.append(recovery)
             continue
         used: set[str] = set()
         blocks: list[dict[str, Any]] = []
-        for pattern in goal_profile.focus_order:
-            candidate = _pick_exercise(exercises, pattern, used)
+        for pattern in focus_order:
+            difficulty_cap = _difficulty_cap(assessment, pattern)
+            if difficulty_cap is not None and history_signal == "REGRESS":
+                difficulty_cap = max(1, difficulty_cap - 1)
+            elif difficulty_cap is not None and history_signal == "PROGRESS":
+                difficulty_cap = min(5, difficulty_cap + 1)
+            candidate = _pick_exercise(exercises, pattern, used, difficulty_cap)
             if candidate is None:
                 continue
             if noise_preference == "QUIET" and candidate["noise_level"] == "HIGH":
@@ -187,7 +318,12 @@ def generate_cycle(
             sets = goal_profile.base_sets
             if profile.get("training_experience") == "new":
                 sets = max(1, sets - 1)
-            blocks.append(_block(candidate, sets, goal_profile.intensity))
+            if _assessment_average(assessment) >= 4 and profile.get("training_experience") != "new":
+                sets = min(4, sets + 1)
+            if history_signal == "REGRESS" or recovery_reduction:
+                sets = max(1, sets - 1)
+            intensity = "easy" if recovery_reduction else goal_profile.intensity
+            blocks.append(_block(candidate, sets, intensity))
         if not blocks:
             recovery = {
                 "date": current_date.isoformat(),
@@ -198,6 +334,7 @@ def generate_cycle(
                 "kind": "RECOVERY",
                 "blocks": [],
                 "minimum_workout": [],
+                "short_workout": [],
             }
             selected_days.append(recovery)
             continue
@@ -209,11 +346,12 @@ def generate_cycle(
             "date": current_date.isoformat(),
             "day_index": index,
             "title": goal_profile.title,
-            "focus": " + ".join(goal_profile.focus_order[:2]),
+            "focus": " + ".join(focus_order[:2]),
             "duration_minutes": min(session_minutes, max(6, len(blocks) * 4 + 4)),
             "kind": "TRAINING",
             "blocks": blocks,
         }
+        workout["short_workout"] = build_short_workout(workout, max(goal_profile.minimum_blocks + 1, 3))
         workout["minimum_workout"] = build_minimum_workout(workout, goal_profile.minimum_blocks)
         selected_days.append(workout)
     return selected_days

@@ -17,6 +17,7 @@ export type DailyWorkout = {
   duration_minutes: number;
   kind: "TRAINING" | "RECOVERY";
   blocks: WorkoutBlock[];
+  short_workout: WorkoutBlock[];
   minimum_workout: WorkoutBlock[];
 };
 
@@ -38,6 +39,9 @@ export type Dashboard = {
   consistency: Record<string, { completed: number; planned: number; percentage: number }>;
   total_training_minutes: number;
   fitness_levels: Record<string, string>;
+  assessment_history: { id: string; user_id: string; assessed_at: string; dimensions: Record<string, string>; raw_inputs: Record<string, number> }[];
+  performance_change: Record<string, { before: string; after: string; delta: number }>;
+  achievements: string[];
   discipline_level: string;
   xp: number;
   next_workout: DailyWorkout | null;

@@ -78,6 +78,7 @@ class ExerciseResponse(BaseModel):
     restriction_tags: list[str]
     pose_supported: bool
     pose_rules: dict[str, Any]
+    rom_rules: dict[str, Any]
     common_mistakes: list[str]
     coaching_cues: list[str]
     version: str
@@ -127,6 +128,7 @@ class DailyWorkout(BaseModel):
     duration_minutes: int
     kind: Literal["TRAINING", "RECOVERY"]
     blocks: list[WorkoutBlock]
+    short_workout: list[WorkoutBlock] = Field(default_factory=list)
     minimum_workout: list[WorkoutBlock]
 
 
@@ -215,6 +217,9 @@ class DashboardResponse(BaseModel):
     consistency: dict[str, dict[str, int | float]]
     total_training_minutes: int
     fitness_levels: dict[str, str]
+    assessment_history: list[AssessmentResponse] = Field(default_factory=list)
+    performance_change: dict[str, dict[str, str | int]] = Field(default_factory=dict)
+    achievements: list[str] = Field(default_factory=list)
     discipline_level: str
     xp: int
     next_workout: DailyWorkout | None = None

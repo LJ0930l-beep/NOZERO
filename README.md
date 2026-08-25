@@ -6,7 +6,7 @@ The repository name is intentionally `NOZEERO` at `D:\RJ\codex\NOZEERO`. It is a
 
 ## Current version
 
-`1.0.0-alpha.1` — local release candidate. The core onboarding → assessment → 28-day plan → workout feedback → XP/streak/dashboard/reassessment path is implemented and tested. The Python MediaPipe/OpenCV adapter is locally verified; the browser camera remains preview-only by design until a browser-side model bundle is selected.
+`1.0.0-rc.1` — local release candidate. The core onboarding → assessment → 28-day plan → full/short/minimum workout feedback → XP/streak/dashboard/reassessment path is implemented and tested. The Python MediaPipe/OpenCV adapter is locally verified; the browser camera remains preview-only by design until a browser-side model bundle is selected.
 
 ## Features
 
@@ -14,14 +14,16 @@ The repository name is intentionally `NOZEERO` at `D:\RJ\codex\NOZEERO`. It is a
 - ZERO/HOME/MINIMAL exercise catalog with progression/regression metadata and environment filters.
 - Five independent assessment dimensions mapped to F1–F5.
 - Rule-based training cycle → daily workout generation with goal-specific frequency, volume, focus, and cardio behavior.
+- Movement-pattern coverage across push, pull, squat, lunge, hinge, hip extension, core flexion, anti-extension, anti-rotation, lateral core, cardio, and mobility; assessment levels cap difficulty and recent recovery adjusts dose.
 - Progression, recovery, and safety engines independent from the language model.
-- FULL, MINIMUM, RECOVERY, and ZERO execution states; recovery preserves streaks and minimum sessions are derived from the original plan.
+- FULL, RESCUE/SHORT, MINIMUM, RECOVERY, and ZERO execution states; rescue and minimum sessions are derived from the original plan, and recovery preserves streaks.
 - 7/28/90-day consistency, XP, streaks, and separate discipline levels.
 - Local Ollama/Qwen boundary with structured output validation and deterministic fallback.
 - Manual workout timer and optional local camera preview; raw video is not persisted by default.
 - Squat/push-up geometry contracts, calibration checks, confidence states, `UNABLE_TO_DETERMINE` behavior, and an optional local OpenCV/MediaPipe adapter.
 - Lightweight nutrition awareness, body-weight trend, hydration/fruit-vegetable reminders, and manual daily-movement logging.
 - Dashboard, analytics, reassessment comparison, weekly review, export, history reset, and data deletion endpoints.
+- Performance-change and fitness-progress summaries, local discipline achievements, ROM-rule catalog metadata, and assessment-driven plan refresh.
 
 ## Architecture
 
