@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local data and secrets
+.env
+*.db
+*.sqlite
+*.sqlite3
+*.tsbuildinfo
+backend/data/
+data/local/
+!data/seed/
+
+# Node / Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/coverage/
+npm-debug.log*
+
+# Local AI and media artifacts
+*.gguf
+*.safetensors
+*.mp4
+*.mov
+*.webm
+camera-recordings/
+ollama-cache/
+
+# Tooling state
+.autodev/
+.DS_Store
+Thumbs.db

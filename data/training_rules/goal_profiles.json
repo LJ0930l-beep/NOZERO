@@ -1,0 +1,19 @@
+{
+  "principles": {
+    "fat_loss": ["resistance", "cardio", "daily_movement", "consistency"],
+    "abs": ["core_development", "body_fat_management_awareness"],
+    "muscle_gain": ["progressive_overload", "volume", "rir", "recovery"],
+    "build_exercise_habit": ["low_friction", "short_sessions", "minimum_workout", "consistency"]
+  },
+  "safety": {
+    "red_flag_status": "BLOCKED",
+    "pain_threshold_for_reduced_load": 2,
+    "pain_threshold_for_stop": 4
+  },
+  "discipline": {
+    "full_xp": 100,
+    "minimum_xp": 30,
+    "recovery_xp": 20,
+    "zero_xp": 0
+  }
+}

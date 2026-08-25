@@ -1,0 +1,30 @@
+[project]
+name = "nozeero"
+version = "1.0.0a1"
+description = "Local-first safety-first indoor training system"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30,<1",
+  "pydantic>=2.7,<3",
+  "python-dotenv>=1.0,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.27,<1",
+  "pytest>=8,<9",
+  "ruff>=0.6,<1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["backend/tests", "ai/tests", "pose/tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [".autodev", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
