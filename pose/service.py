@@ -1,4 +1,4 @@
-"""Pose service facade; MediaPipe can be added behind this interface later."""
+"""Pose service facade for normalized landmarks from manual or local adapters."""
 
 from __future__ import annotations
 

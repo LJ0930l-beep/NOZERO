@@ -18,3 +18,11 @@ ALLOWED_KEYS = {
 
 def select_memory_updates(observation: dict[str, Any]) -> dict[str, str]:
     return {key: str(value) for key, value in observation.items() if key in ALLOWED_KEYS and value not in (None, "")}
+
+
+class MemoryManager:
+    """Small, bounded fitness memory; raw chat transcripts are never retained."""
+
+    @staticmethod
+    def select_updates(observation: dict[str, Any]) -> dict[str, str]:
+        return select_memory_updates(observation)

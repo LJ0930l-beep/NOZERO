@@ -42,3 +42,29 @@ export type Dashboard = {
   xp: number;
   next_workout: DailyWorkout | null;
 };
+
+export type CoachResponse = {
+  source: "ollama" | "fallback";
+  fatigue: "low" | "moderate" | "high" | "unknown";
+  motivation: "low" | "moderate" | "high" | "unknown";
+  time_available_minutes: number | null;
+  recommendation: "normal" | "short" | "minimum" | "recovery" | "stop";
+  reason: string;
+  message: string;
+};
+
+export type WellnessSummary = {
+  latest: {
+    log_date: string;
+    body_weight_kg: number | null;
+    protein_awareness: boolean | null;
+    hydration_glasses: number | null;
+    fruit_vegetable_servings: number | null;
+    steps: number | null;
+    daily_movement_minutes: number | null;
+    sedentary_minutes: number | null;
+    notes: string;
+  } | null;
+  body_weight_trend: { date: string; weight_kg: number }[];
+  averages: Record<string, number>;
+};

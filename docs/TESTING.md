@@ -12,5 +12,6 @@ Frontend checks:
 - `npx tsc --noEmit` validates strict TypeScript.
 - `npm run lint` runs non-interactive ESLint.
 - `npm run build` validates the Next production bundle and all routes.
+- `npm run e2e` runs Playwright smoke coverage against the production Next server for the Today, Workout, and Onboarding surfaces. Install the browser once with `npx playwright install chromium`.
 
-The remaining test gap is browser-level Playwright coverage for camera permissions, responsive layout, and the full UI workflow.
+The remaining test gap is browser-level coverage for camera permissions, responsive layout, and the full API-backed UI workflow. The current smoke tests intentionally use the demo state; the Python MediaPipe adapter has a separate local integration test that skips cleanly when the optional model asset is absent.

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from statistics import mean
 from typing import Any
 
+from ai.memory.manager import MemoryManager
 from ai.ollama.client import OllamaClient
+from ai.ollama.review import WeeklyReview
 from ai.ollama.service import LocalAIService
 from backend.app.core.config import Settings
 from backend.app.core.errors import ResourceNotFoundError, SafetyBlockedError
@@ -20,6 +23,7 @@ from backend.app.schemas.domain import (
     CoachRequest,
     OnboardingRequest,
     PlanRequest,
+    WellnessCheckinRequest,
     WorkoutFeedbackRequest,
 )
 
@@ -175,12 +179,16 @@ class ApplicationService:
         payload = request.model_dump()
         payload["status"] = status
         session = self.repository.create_session(payload, xp)
-        if request.fatigue is not None:
-            self.repository.save_memory(request.user_id, "fatigue_pattern", f"last={request.fatigue}/10")
-        if request.enjoyment is not None:
-            self.repository.save_memory(
-                request.user_id, "training_preference", f"last_enjoyment={request.enjoyment}/10"
-            )
+        memory_updates = MemoryManager.select_updates(
+            {
+                "fatigue_pattern": f"last={request.fatigue}/10" if request.fatigue is not None else None,
+                "training_preference": (
+                    f"last_enjoyment={request.enjoyment}/10" if request.enjoyment is not None else None
+                ),
+            }
+        )
+        for key, value in memory_updates.items():
+            self.repository.save_memory(request.user_id, key, value)
         recommendation = recovery.suggested_action
         return {**session, "next_recommendation": recommendation, "recovery_status": recovery.status}
 
@@ -230,21 +238,9 @@ class ApplicationService:
 
     def weekly_review(self, user_id: str) -> dict[str, Any]:
         self.get_user_or_raise(user_id)
-        sessions = self.repository.list_sessions(user_id)[-7:]
-        successful = [item for item in sessions if item.get("status") in {"FULL", "MINIMUM", "RECOVERY"}]
-        total_minutes = sum(
-            int(item.get("workout_plan", {}).get("duration_minutes", 0))
-            for item in sessions
-            if isinstance(item.get("workout_plan"), dict)
-        )
+        metrics = WeeklyReview.summarize(self.repository.list_sessions(user_id))
         return {
-            "sessions_completed": len(successful),
-            "consistency": round(len(successful) / 7 * 100, 1),
-            "training_time_minutes": total_minutes,
-            "full_days": sum(item.get("status") == "FULL" for item in sessions),
-            "minimum_days": sum(item.get("status") == "MINIMUM" for item in sessions),
-            "recovery_days": sum(item.get("status") == "RECOVERY" for item in sessions),
-            "zero_days": sum(item.get("status") == "ZERO" for item in sessions),
+            **metrics,
             "next_week_recommendation": "keep the plan and adjust one variable from recent recovery feedback",
         }
 
@@ -259,3 +255,39 @@ class ApplicationService:
     def delete_data(self, user_id: str) -> None:
         self.get_user_or_raise(user_id)
         self.repository.delete_user(user_id)
+
+    def wellness_checkin(self, request: WellnessCheckinRequest) -> dict[str, Any]:
+        self.get_user_or_raise(request.user_id)
+        payload = request.model_dump()
+        payload["log_date"] = (request.log_date or date.today()).isoformat()
+        return self.repository.save_wellness(payload)
+
+    def wellness_summary(self, user_id: str) -> dict[str, Any]:
+        self.get_user_or_raise(user_id)
+        logs = self.repository.list_wellness(user_id)
+        latest = logs[-1] if logs else None
+        trend = [
+            {"date": item["log_date"], "weight_kg": item["body_weight_kg"]}
+            for item in logs
+            if item.get("body_weight_kg") is not None
+        ]
+        averages: dict[str, float] = {}
+        numeric_fields = (
+            "steps",
+            "daily_movement_minutes",
+            "sedentary_minutes",
+            "hydration_glasses",
+            "fruit_vegetable_servings",
+        )
+        for field in numeric_fields:
+            values = [float(item[field]) for item in logs if item.get(field) is not None]
+            if values:
+                averages[field] = round(mean(values), 1)
+        protein_values = [
+            float(item["protein_awareness"])
+            for item in logs
+            if item.get("protein_awareness") is not None
+        ]
+        if protein_values:
+            averages["protein_awareness_rate"] = round(mean(protein_values) * 100, 1)
+        return {"latest": latest, "body_weight_trend": trend, "averages": averages}

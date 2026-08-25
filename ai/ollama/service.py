@@ -6,7 +6,8 @@ import re
 from typing import Any
 
 from ai.ollama.client import OllamaClient, OllamaUnavailable
-from ai.ollama.context import build_context
+from ai.ollama.coach import FitnessCoach
+from ai.ollama.context import ContextBuilder
 from ai.schemas.coach import CoachDecision
 
 
@@ -16,6 +17,7 @@ class LocalAIService:
     def __init__(self, client: OllamaClient, allow_model: bool = True) -> None:
         self.client = client
         self.allow_model = allow_model
+        self.fitness_coach = FitnessCoach(client)
 
     def coach(
         self,
@@ -30,18 +32,11 @@ class LocalAIService:
         fallback = self._fallback(message, user, recovery_status, safety_status)
         if not self.allow_model or safety_status == "BLOCKED":
             return "fallback", fallback
-        context = build_context(user, today_plan, recent_sessions, recovery_status, memories)
-        prompt = (
-            "You are a conservative local fitness coach. Return only JSON matching this schema: "
-            '{"fatigue":"low|moderate|high|unknown","motivation":"low|moderate|high|unknown",'
-            '"time_available_minutes":number|null,"recommendation":"normal|short|minimum|recovery|stop",'
-            '"reason":"string","message":"string"}. '
-            "Never diagnose. Never override safety, recovery, or exercise restrictions. "
-            f"USER_MESSAGE={message}\nSTRUCTURED_CONTEXT={context}"
-        )
+        context = ContextBuilder.build(user, today_plan, recent_sessions, recovery_status, memories)
         try:
-            decision = CoachDecision.model_validate(self.client.generate_json(prompt))
-            if safety_status == "BLOCKED" and decision.recommendation != "stop":
+            decision = self.fitness_coach.generate(message, context)
+            priority = {"normal": 0, "short": 1, "minimum": 2, "recovery": 3, "stop": 4}
+            if priority[decision.recommendation] < priority[fallback.recommendation]:
                 return "fallback", fallback
             return "ollama", decision
         except (OllamaUnavailable, ValueError, TypeError):
@@ -58,6 +53,14 @@ class LocalAIService:
                 reason="safety screening found a red-flag symptom or restriction",
                 message="先停止正常训练流程；如果症状明显或持续，请寻求合适的专业医疗意见。",
             )
+        if safety_status == "CAUTION":
+            return CoachDecision(
+                fatigue="unknown",
+                motivation="moderate",
+                recommendation="short",
+                reason="a screening caution requires a conservative reduced session",
+                message="当前有安全注意事项，先采用短版、无痛范围和低冲击选项；如有疑问请先获得专业意见。",
+            )
         if recovery_status == "RECOVERY" or any(
             term in text for term in ("胸痛", "晕厥", "严重呼吸", "chest pain", "faint")
         ):
@@ -67,6 +70,28 @@ class LocalAIService:
                 recommendation="stop",
                 reason="pain or a red-flag symptom needs safety review before exercise",
                 message="当前不适合继续训练，先停止并进行安全评估。",
+            )
+        if any(term in text for term in ("腿很痛", "很痛", "疼", "受伤", "pain", "injury")):
+            return CoachDecision(
+                fatigue="moderate",
+                motivation="unknown",
+                recommendation="recovery",
+                reason="reported pain or injury language requires a recovery-focused downgrade",
+                message="先不要继续刺激疼痛部位，切换到恢复或寻求合适的专业意见。",
+            )
+        if any(
+            term in text
+            for term in (
+                "300个", "300次", "每天练胸", "每天练腿", "every day", "daily chest", "无限增加", "more volume"
+            )
+        ):
+            return CoachDecision(
+                fatigue="unknown",
+                motivation="high",
+                time_available_minutes=None,
+                recommendation="short",
+                reason="arbitrary high volume or daily single-pattern training is not a safe progression rule",
+                message="不安排任意堆量；按今天计划的剂量执行，下一次进阶需要真实完成度、RPE/RIR 和动作质量。",
             )
         time_match = re.search(r"(\d{1,3})\s*(?:分钟|min|minutes?)", text)
         minutes = int(time_match.group(1)) if time_match else None

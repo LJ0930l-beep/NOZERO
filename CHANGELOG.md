@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.0-alpha.1 — 2026-08-26
+
+### Added
+
+- Full primary-goal and secondary-focus coverage, equipment-limited Pull exercises, local wellness logs, weight trend, and daily-movement summaries.
+- Explicit PromptRouter, ContextBuilder, ResponseParser, FitnessCoach, WeeklyReview, and MemoryManager boundaries.
+- Local Qwen smoke helper, optional MediaPipe/OpenCV Tasks adapter, Playwright E2E smoke tests, and conservative AI guardrail tests.
+- Manual workout set tracking, RIR/fatigue/notes feedback, and explicit ZERO-day logging.
+- Reassessment UI entry point and plan refresh flow.
+
+### Verified
+
+- Backend, AI, pose, and frontend quality gates pass locally; see `docs/PHASE-12-REPORT.md`.
+
 ## 1.0.0-alpha.0 — 2026-08-26
 
 ### Added

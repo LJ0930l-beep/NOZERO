@@ -25,6 +25,7 @@ class OllamaClient:
             "prompt": prompt,
             "stream": False,
             "format": "json",
+            "think": False,
             "options": {"temperature": 0.2},
         }
         request = Request(
@@ -38,7 +39,7 @@ class OllamaClient:
                 body = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, OSError) as exc:
             raise OllamaUnavailable(str(exc)) from exc
-        raw = body.get("response", body)
+        raw = body.get("response") or body.get("thinking") or body
         if isinstance(raw, dict):
             return raw
         if not isinstance(raw, str):

@@ -351,6 +351,69 @@ class SQLiteRepository:
             ).fetchone()
         return int(row["xp"] if row else 0)
 
+    def save_wellness(self, payload: dict[str, Any]) -> dict[str, Any]:
+        log_date = str(payload["log_date"])
+        values = (
+            payload["user_id"],
+            log_date,
+            payload.get("body_weight_kg"),
+            None if payload.get("protein_awareness") is None else int(payload["protein_awareness"]),
+            payload.get("hydration_glasses"),
+            payload.get("fruit_vegetable_servings"),
+            payload.get("steps"),
+            payload.get("daily_movement_minutes"),
+            payload.get("sedentary_minutes"),
+            payload.get("notes", ""),
+        )
+        with self.database.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO wellness_logs(
+                    user_id, log_date, body_weight_kg, protein_awareness,
+                    hydration_glasses, fruit_vegetable_servings, steps,
+                    daily_movement_minutes, sedentary_minutes, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, log_date) DO UPDATE SET
+                    body_weight_kg = excluded.body_weight_kg,
+                    protein_awareness = excluded.protein_awareness,
+                    hydration_glasses = excluded.hydration_glasses,
+                    fruit_vegetable_servings = excluded.fruit_vegetable_servings,
+                    steps = excluded.steps,
+                    daily_movement_minutes = excluded.daily_movement_minutes,
+                    sedentary_minutes = excluded.sedentary_minutes,
+                    notes = excluded.notes
+                """,
+                values,
+            )
+        return self.get_wellness(payload["user_id"], log_date)  # type: ignore[return-value]
+
+    def get_wellness(self, user_id: str, log_date: str) -> dict[str, Any] | None:
+        with self.database.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM wellness_logs WHERE user_id = ? AND log_date = ?",
+                (user_id, log_date),
+            ).fetchone()
+        if not row:
+            return None
+        item = dict(row)
+        if item["protein_awareness"] is not None:
+            item["protein_awareness"] = bool(item["protein_awareness"])
+        return item
+
+    def list_wellness(self, user_id: str) -> list[dict[str, Any]]:
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM wellness_logs WHERE user_id = ? ORDER BY log_date ASC",
+                (user_id,),
+            ).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            if item["protein_awareness"] is not None:
+                item["protein_awareness"] = bool(item["protein_awareness"])
+            result.append(item)
+        return result
+
     def export_user_data(self, user_id: str) -> dict[str, Any]:
         latest_cycle = self.latest_cycle(user_id)
         return {
@@ -359,6 +422,7 @@ class SQLiteRepository:
             "training_cycles": [latest_cycle] if latest_cycle else [],
             "workout_sessions": self.list_sessions(user_id),
             "fitness_memory": self.read_memories(user_id),
+            "wellness_logs": self.list_wellness(user_id),
         }
 
     def reset_training_history(self, user_id: str) -> None:
@@ -367,6 +431,7 @@ class SQLiteRepository:
             connection.execute("DELETE FROM training_cycles WHERE user_id = ?", (user_id,))
             connection.execute("DELETE FROM assessment_results WHERE user_id = ?", (user_id,))
             connection.execute("DELETE FROM fitness_memory WHERE user_id = ?", (user_id,))
+            connection.execute("DELETE FROM wellness_logs WHERE user_id = ?", (user_id,))
 
     def delete_user(self, user_id: str) -> None:
         with self.database.connect() as connection:

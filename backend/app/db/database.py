@@ -107,12 +107,28 @@ CREATE TABLE IF NOT EXISTS fitness_memory (
     PRIMARY KEY (user_id, memory_key)
 );
 
+CREATE TABLE IF NOT EXISTS wellness_logs (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    log_date TEXT NOT NULL,
+    body_weight_kg REAL,
+    protein_awareness INTEGER,
+    hydration_glasses INTEGER,
+    fruit_vegetable_servings INTEGER,
+    steps INTEGER,
+    daily_movement_minutes INTEGER,
+    sedentary_minutes INTEGER,
+    notes TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (user_id, log_date)
+);
+
 CREATE INDEX IF NOT EXISTS idx_assessments_user_date
     ON assessment_results(user_id, assessed_at);
 CREATE INDEX IF NOT EXISTS idx_cycles_user_date
     ON training_cycles(user_id, start_date);
 CREATE INDEX IF NOT EXISTS idx_sessions_user_date
     ON workout_sessions(user_id, workout_date);
+CREATE INDEX IF NOT EXISTS idx_wellness_user_date
+    ON wellness_logs(user_id, log_date);
 """
 
 

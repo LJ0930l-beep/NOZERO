@@ -29,6 +29,9 @@ from backend.app.schemas.domain import (
     PoseAnalyzeResponse,
     PoseCalibrationRequest,
     UserResponse,
+    WellnessCheckinRequest,
+    WellnessResponse,
+    WellnessSummaryResponse,
     WorkoutFeedbackRequest,
     WorkoutSessionResponse,
 )
@@ -161,6 +164,14 @@ def create_app(
     @app.get("/api/v1/weekly-review")
     def weekly_review(user_id: str) -> dict[str, Any]:
         return application.weekly_review(user_id)
+
+    @app.post("/api/v1/wellness", response_model=WellnessResponse, status_code=201)
+    def wellness(request: WellnessCheckinRequest) -> dict[str, Any]:
+        return application.wellness_checkin(request)
+
+    @app.get("/api/v1/wellness/summary", response_model=WellnessSummaryResponse)
+    def wellness_summary(user_id: str) -> dict[str, Any]:
+        return application.wellness_summary(user_id)
 
     @app.get("/api/v1/users/{user_id}/data/export")
     def export_data(user_id: str) -> dict[str, Any]:

@@ -218,3 +218,35 @@ class DashboardResponse(BaseModel):
     discipline_level: str
     xp: int
     next_workout: DailyWorkout | None = None
+
+
+class WellnessCheckinRequest(BaseModel):
+    user_id: str
+    log_date: date | None = None
+    body_weight_kg: float | None = Field(default=None, gt=0, le=500)
+    protein_awareness: bool | None = None
+    hydration_glasses: int | None = Field(default=None, ge=0, le=40)
+    fruit_vegetable_servings: int | None = Field(default=None, ge=0, le=30)
+    steps: int | None = Field(default=None, ge=0, le=200000)
+    daily_movement_minutes: int | None = Field(default=None, ge=0, le=1440)
+    sedentary_minutes: int | None = Field(default=None, ge=0, le=1440)
+    notes: str = Field(default="", max_length=2000)
+
+
+class WellnessResponse(BaseModel):
+    user_id: str
+    log_date: str
+    body_weight_kg: float | None = None
+    protein_awareness: bool | None = None
+    hydration_glasses: int | None = None
+    fruit_vegetable_servings: int | None = None
+    steps: int | None = None
+    daily_movement_minutes: int | None = None
+    sedentary_minutes: int | None = None
+    notes: str = ""
+
+
+class WellnessSummaryResponse(BaseModel):
+    latest: WellnessResponse | None = None
+    body_weight_trend: list[dict[str, str | float]]
+    averages: dict[str, float]

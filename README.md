@@ -6,7 +6,7 @@ The repository name is intentionally `NOZEERO` at `D:\RJ\codex\NOZEERO`. It is a
 
 ## Current version
 
-`1.0.0-alpha.0` — functional vertical slice. The core onboarding → assessment → cycle plan → workout feedback → XP/streak/dashboard/reassessment path is implemented and tested. The first pose counters accept normalized landmark data; MediaPipe/browser camera wiring remains an explicit follow-up.
+`1.0.0-alpha.1` — local release candidate. The core onboarding → assessment → 28-day plan → workout feedback → XP/streak/dashboard/reassessment path is implemented and tested. The Python MediaPipe/OpenCV adapter is locally verified; the browser camera remains preview-only by design until a browser-side model bundle is selected.
 
 ## Features
 
@@ -18,8 +18,9 @@ The repository name is intentionally `NOZEERO` at `D:\RJ\codex\NOZEERO`. It is a
 - FULL, MINIMUM, RECOVERY, and ZERO execution states; recovery preserves streaks and minimum sessions are derived from the original plan.
 - 7/28/90-day consistency, XP, streaks, and separate discipline levels.
 - Local Ollama/Qwen boundary with structured output validation and deterministic fallback.
-- Manual workout timer and optional camera-mode surface; raw video is not persisted by default.
-- Squat/push-up geometry contracts, calibration checks, confidence states, and `UNABLE_TO_DETERMINE` behavior.
+- Manual workout timer and optional local camera preview; raw video is not persisted by default.
+- Squat/push-up geometry contracts, calibration checks, confidence states, `UNABLE_TO_DETERMINE` behavior, and an optional local OpenCV/MediaPipe adapter.
+- Lightweight nutrition awareness, body-weight trend, hydration/fruit-vegetable reminders, and manual daily-movement logging.
 - Dashboard, analytics, reassessment comparison, weekly review, export, history reset, and data deletion endpoints.
 
 ## Architecture
@@ -59,7 +60,7 @@ Copy-Item .env.example .env
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,pose]"
 python scripts/seed_data.py
 Set-Location frontend
 npm ci
@@ -74,10 +75,22 @@ Ollama is not needed for rule-based plan generation. To enable the local coach:
 
 ```powershell
 ollama serve
-ollama pull qwen2.5:9b
+ollama pull qwen3.5:9b
 ```
 
-Set `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and `OLLAMA_TIMEOUT_SECONDS` in `.env` if your local model tag differs. If Ollama is unavailable, the API returns a validated deterministic fallback and labels its source as `fallback`.
+Set `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and `OLLAMA_TIMEOUT_SECONDS` in `.env` if your local model tag differs. The default matches the locally available Qwen 9B tag used during smoke verification. If Ollama is unavailable, the API returns a validated deterministic fallback and labels its source as `fallback`.
+
+To require a real local-model response:
+
+```powershell
+python scripts/smoke_ollama.py
+```
+
+For local Pose inference, download the official model asset after installing the `pose` extra:
+
+```powershell
+python scripts/download_pose_model.py
+```
 
 ## Start backend
 
@@ -112,10 +125,14 @@ python -m ruff check backend ai pose scripts
 python -m compileall -q backend ai pose scripts
 Set-Location frontend
 npm run test
+npx playwright install chromium
+npm run e2e
 npx tsc --noEmit
 npm run lint
 npm run build
 ```
+
+When Ollama and the configured Qwen model are running, verify the live model separately with `python scripts/smoke_ollama.py`. The regular test command remains runnable without a model and exercises the deterministic fallback.
 
 ## Directory structure
 
@@ -136,16 +153,16 @@ NOZEERO/
 ## Known issues and deferred work
 
 - The API currently has no authentication; it is intended for a local single-user V1 alpha.
-- Browser MediaPipe/OpenCV capture is not bundled yet. The pose API accepts normalized landmarks and explicitly refuses uncertain inputs.
-- Ollama/Qwen live invocation depends on a locally running model and was not claimed as passed when the model is absent.
-- E2E browser automation is not included in the current dependency set; the frontend build, TypeScript, lint, and Vitest smoke test are present.
+- The browser camera route provides permission-safe local preview only. Python-side MediaPipe/OpenCV inference is available through `pose.adapters.mediapipe_adapter`; browser-side frame inference is intentionally deferred so raw video does not cross the local boundary.
+- Ollama/Qwen live invocation depends on a locally running model. It was verified in the development environment with `qwen3.5:9b`; an unavailable model falls back deterministically.
+- Playwright covers the demo Today, Workout, and Onboarding surfaces. Camera permission, responsive visual QA, and a full API-backed browser journey remain hardware/environment-dependent.
 - GitHub repository creation, push, and release require an external GitHub account/authorization and are not performed implicitly by local development.
 
 ## Roadmap
 
-1. Add browser camera capture with MediaPipe Tasks and calibration telemetry.
+1. Add an explicitly opt-in browser-side MediaPipe Tasks bundle and calibration telemetry without uploading frames.
 2. Add a local single-user session/auth boundary and richer data export format.
-3. Add Playwright flow coverage and visual QA for mobile workout mode.
+3. Expand Playwright flow coverage and visual QA for mobile workout mode.
 4. Add PostgreSQL adapter and migration tooling without changing engine contracts.
 5. After clean-install verification, create a GitHub repository and tag `v1.0.0` with explicit user authorization.
 

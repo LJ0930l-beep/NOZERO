@@ -34,7 +34,7 @@ GOAL_PROFILES: dict[str, GoalProfile] = {
     "muscle_gain": GoalProfile(
         (0, 1, 3, 4),
         "Progressive resistance",
-        ("Horizontal Push", "Squat", "Hip Extension", "Core"),
+        ("Horizontal Push", "Pull", "Squat", "Hip Extension", "Core"),
         4,
         False,
         "challenging",
@@ -52,7 +52,7 @@ GOAL_PROFILES: dict[str, GoalProfile] = {
     "strength": GoalProfile(
         (0, 1, 3, 5),
         "Strength practice",
-        ("Squat", "Horizontal Push", "Vertical Push", "Core"),
+        ("Squat", "Horizontal Push", "Pull", "Vertical Push", "Core"),
         4,
         False,
         "challenging",

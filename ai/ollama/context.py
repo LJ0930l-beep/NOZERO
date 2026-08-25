@@ -41,3 +41,17 @@ def build_context(
         "fitness_memory": memories,
     }
     return json.dumps(context, ensure_ascii=False, separators=(",", ":"))
+
+
+class ContextBuilder:
+    """Named boundary for the bounded context passed to a local model."""
+
+    @staticmethod
+    def build(
+        user: dict[str, Any],
+        today_plan: dict[str, Any] | None,
+        recent_sessions: list[dict[str, Any]],
+        recovery_status: str,
+        memories: dict[str, str],
+    ) -> str:
+        return build_context(user, today_plan, recent_sessions, recovery_status, memories)

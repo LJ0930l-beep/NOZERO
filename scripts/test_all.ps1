@@ -3,8 +3,10 @@ Set-Location $projectRoot
 
 python -m ruff check backend ai pose scripts
 python -m pytest -q
+python -m compileall -q backend ai pose scripts
 Set-Location (Join-Path $projectRoot "frontend")
 npm run test
 npx tsc --noEmit
 npm run lint
 npm run build
+npm run e2e

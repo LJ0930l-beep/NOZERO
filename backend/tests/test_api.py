@@ -150,3 +150,38 @@ def test_reassessment_and_local_data_controls() -> None:
         assert len(exported.json()["assessments"]) == 2
         assert client.post(f"/api/v1/users/{user_id}/data/reset-history").status_code == 204
         assert client.get(f"/api/v1/users/{user_id}/data/export").json()["assessments"] == []
+
+
+def test_pull_is_explicitly_equipment_limited_and_wellness_is_local() -> None:
+    with _client() as client:
+        base = {
+            "age": 35, "sex": "x", "height_cm": 175, "weight_kg": 75,
+            "training_experience": "intermediate", "available_training_days": 4, "session_duration_minutes": 30,
+            "available_space": "MEDIUM", "noise_preference": "NORMAL", "jumping_allowed": True,
+            "primary_goal": "muscle_gain", "secondary_focus": "back", "safety": {},
+        }
+        zero = client.post("/api/v1/onboarding", json={**base, "equipment_mode": "ZERO"}).json()["id"]
+        zero_exercises = client.get(f"/api/v1/exercises?user_id={zero}").json()
+        assert not any(item["movement_pattern"] == "Pull" for item in zero_exercises)
+        minimal = client.post("/api/v1/onboarding", json={**base, "equipment_mode": "MINIMAL"}).json()["id"]
+        minimal_exercises = client.get(f"/api/v1/exercises?user_id={minimal}").json()
+        assert any(item["movement_pattern"] == "Pull" for item in minimal_exercises)
+        wellness = client.post(
+            "/api/v1/wellness",
+            json={
+                "user_id": minimal,
+                "log_date": "2026-08-26",
+                "body_weight_kg": 74.5,
+                "protein_awareness": True,
+                "hydration_glasses": 7,
+                "fruit_vegetable_servings": 4,
+                "steps": 8000,
+                "daily_movement_minutes": 45,
+                "sedentary_minutes": 420,
+            },
+        )
+        assert wellness.status_code == 201
+        summary = client.get(f"/api/v1/wellness/summary?user_id={minimal}").json()
+        assert summary["body_weight_trend"][0]["weight_kg"] == 74.5
+        assert summary["averages"]["steps"] == 8000
+        assert client.get(f"/api/v1/users/{minimal}/data/export").json()["wellness_logs"]
