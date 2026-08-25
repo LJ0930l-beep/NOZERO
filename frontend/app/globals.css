@@ -137,6 +137,10 @@ h1 em { color: var(--lime); font-style: normal; }
 .workout-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 25px; }
 .camera-card { background: var(--panel); padding: 25px 28px; min-height: 240px; }
 .camera-frame { aspect-ratio: 4 / 3; background: repeating-linear-gradient(135deg, #1b2430 0, #1b2430 1px, transparent 1px, transparent 12px), #10161f; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 25px; margin: 18px 0; }
+.camera-preview { overflow: hidden; padding: 0; }
+.camera-preview video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.camera-status { color: var(--muted); font: 10px/1.5 var(--mono); display: flex; gap: 8px; align-items: flex-start; }
+.camera-action { margin-top: 14px; }
 .camera-frame span { display: block; color: var(--blue); font: 10px var(--mono); letter-spacing: .08em; margin-bottom: 9px; }
 .camera-frame p { margin: 0; font-size: 12px; line-height: 1.5; }
 .feedback-card { margin-top: 10px; background: var(--panel); padding: 25px 30px; }

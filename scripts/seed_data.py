@@ -9,12 +9,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from backend.app.core.config import settings
-from backend.app.db.database import Database
-from backend.app.repositories.sqlite_repository import SQLiteRepository
-
-
 def main() -> None:
+    from backend.app.core.config import settings
+    from backend.app.db.database import Database
+    from backend.app.repositories.sqlite_repository import SQLiteRepository
+
     exercises_path = ROOT / "data" / "exercises" / "exercises.json"
     exercises = json.loads(exercises_path.read_text(encoding="utf-8"))
     repository = SQLiteRepository(Database(settings.database_url))
