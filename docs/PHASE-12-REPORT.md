@@ -11,8 +11,10 @@ The end-to-end path is implemented as a local single-user flow:
 - Local project: `D:\RJ\codex\NOZEERO`
 - GitHub repository: [LJ0930l-beep/NOZERO](https://github.com/LJ0930l-beep/NOZERO)
 - Branch: `main`
-- Uploaded commit: `f6d918ba78e9ab50b7de169c4889e0b3d8cea2ef`
-- GitHub Release/tag: pending final acceptance; this report is updated again after `v1.0.0` is published.
+- Uploaded implementation commit: `f6d918ba78e9ab50b7de169c4889e0b3d8cea2ef`
+- Final documentation commit on `main`: recorded after release publication.
+- Immutable release tag: `v1.0.0` at the verified publication commit `3b2c6e6`.
+- GitHub Release: [NO ZERO v1.0.0](https://github.com/LJ0930l-beep/NOZERO/releases/tag/v1.0.0).
 
 ## Acceptance matrix
 
@@ -32,7 +34,7 @@ The end-to-end path is implemented as a local single-user flow:
 | Clean-install quality gates | PASS | Fresh clone from the GitHub `main` commit: Python install/tests `33 passed, 1 skipped`, Ruff, compileall, `npm ci`, Vitest, TypeScript, ESLint, Next build, and 3 Playwright E2E passed. |
 | Privacy/sensitive files | PASS | See `docs/PRIVACY.md`; `.env`, SQLite database, pose model weights, raw video, node modules, build output, and test reports are ignored and absent from tracked files. |
 | GitHub upload | PASS | Remote `origin` points to `https://github.com/LJ0930l-beep/NOZERO.git`; `main` contains commit `f6d918b`. |
-| GitHub Release | PENDING | Tag `v1.0.0` and the GitHub Release remain the final publication step. |
+| GitHub Release | PASS | Annotated tag `v1.0.0` is pushed and the non-draft, non-prerelease GitHub Release is published at the repository release URL. |
 
 ## Clean-install evidence
 

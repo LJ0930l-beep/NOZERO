@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0 — 2026-08-26
+
+### Released
+
+- Published tag `v1.0.0` and GitHub Release at `https://github.com/LJ0930l-beep/NOZERO/releases/tag/v1.0.0`.
+- Accepted after local and fresh-clone quality gates; see `docs/PHASE-12-REPORT.md`.
+
 ## 1.0.0-rc.1 — 2026-08-26
 
 ### Added

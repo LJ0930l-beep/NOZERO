@@ -6,7 +6,7 @@ The repository name is intentionally `NOZEERO` at `D:\RJ\codex\NOZEERO`. It is a
 
 ## Current version
 
-`1.0.0-rc.1` — local release candidate. The core onboarding → assessment → 28-day plan → full/short/minimum workout feedback → XP/streak/dashboard/reassessment path is implemented and tested. The Python MediaPipe/OpenCV adapter is locally verified; the browser camera remains preview-only by design until a browser-side model bundle is selected.
+`1.0.0` — released on 2026-08-26. The core onboarding → assessment → 28-day plan → full/short/minimum workout feedback → XP/streak/dashboard/reassessment path is implemented, tested, clean-installable, and published to GitHub.
 
 ## Features
 
@@ -158,7 +158,7 @@ NOZEERO/
 - The browser camera route provides permission-safe local preview only. Python-side MediaPipe/OpenCV inference is available through `pose.adapters.mediapipe_adapter`; browser-side frame inference is intentionally deferred so raw video does not cross the local boundary.
 - Ollama/Qwen live invocation depends on a locally running model. It was verified in the development environment with `qwen3.5:9b`; an unavailable model falls back deterministically.
 - Playwright covers the demo Today, Workout, and Onboarding surfaces. Camera permission, responsive visual QA, and a full API-backed browser journey remain hardware/environment-dependent.
-- The GitHub repository is `https://github.com/LJ0930l-beep/NOZERO`; `main` has been uploaded. The final `v1.0.0` tag and GitHub Release are published only after the clean-install acceptance gate.
+- The GitHub repository is `https://github.com/LJ0930l-beep/NOZERO`; `main`, tag `v1.0.0`, and the GitHub Release are published. The browser camera remains preview-only by design until a browser-side model bundle is selected.
 
 ## Roadmap
 
@@ -166,6 +166,6 @@ NOZEERO/
 2. Add a local single-user session/auth boundary and richer data export format.
 3. Expand Playwright flow coverage and visual QA for mobile workout mode.
 4. Add PostgreSQL adapter and migration tooling without changing engine contracts.
-5. Publish the verified `v1.0.0` tag and GitHub Release, then continue with browser-side pose inference, auth, and PostgreSQL follow-up work.
+5. Add browser-side pose inference, auth, PostgreSQL migration tooling, and broader mobile visual QA as post-release work.
 
 See the individual documents in `docs/` for the current contracts.
