@@ -28,3 +28,4 @@ The end-to-end path is implemented as a local single-user flow:
 
 - Browser-side MediaPipe inference and camera-permission hardware coverage remain opt-in follow-up work. The current browser route previews locally and does not send frames to the API.
 - Authentication, multi-user authorization, PostgreSQL migration tooling, and production deployment hardening remain outside this local V1 alpha.
+- Pytest reports one non-failing Starlette/httpx deprecation warning from the installed test-client compatibility layer; all 25 tests pass.
