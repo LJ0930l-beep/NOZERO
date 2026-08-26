@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0-rc2 — 2026-08-27
+
+- Fixed date-window accounting, persisted progression state, restriction resolution, muscle/pattern training load, plan adherence, and weekly aerobic-dose tracking.
+- Added additive schema migrations, due-plan execution records, structured safety flags, CI, full browser-flow tests, and the Evidence Registry.
+- Added the default Chinese frontend and corrected minimum/rescue feedback to persist the dose actually performed.
+- Explicitly downgraded browser pose support to local preview until a browser-side inference bundle is selected; the backend pose contract remains confidence-aware.
+
 ## 1.0.0 — 2026-08-26
 
 ### Released

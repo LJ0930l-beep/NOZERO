@@ -1,6 +1,6 @@
 [project]
-name = "nozeero"
-version = "1.0.0a1"
+name = "nozero"
+version = "1.0.0rc2"
 description = "Local-first safety-first indoor training system"
 requires-python = ">=3.11"
 dependencies = [

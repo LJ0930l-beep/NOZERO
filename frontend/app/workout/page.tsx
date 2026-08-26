@@ -37,7 +37,9 @@ export default function WorkoutPage() {
   useEffect(() => {
     const userId = readUserId();
     if (!userId || userId === "demo") return;
-    apiFetch<DailyWorkout>(`/api/v1/workouts/today?user_id=${encodeURIComponent(userId)}`).then((value) => { if (value) setWorkout(value); }).catch(() => undefined);
+    apiFetch<DailyWorkout>(`/api/v1/workouts/today?user_id=${encodeURIComponent(userId)}`)
+      .then((value) => { if (value) setWorkout(value); })
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -69,10 +71,10 @@ export default function WorkoutPage() {
       try {
         await apiFetch("/api/v1/workouts/feedback", {
           method: "POST",
-          body: JSON.stringify({ user_id: userId, workout_date: workout.date, status: "ZERO", workout_plan: workout, notes: "planned zero day" }),
+          body: JSON.stringify({ user_id: userId, workout_date: workout.date, status: "ZERO", workout_plan: workout, notes: "计划内的 ZERO 日" }),
         });
       } catch (submitError) {
-        setError(submitError instanceof Error ? submitError.message : "Zero day could not be saved.");
+        setError(submitError instanceof Error ? submitError.message : "ZERO 日保存失败。");
         return;
       }
     }
@@ -84,6 +86,12 @@ export default function WorkoutPage() {
 
   async function recordFeedback() {
     const userId = readUserId();
+    const status = doseMode === "full" ? (workout.kind === "RECOVERY" ? "RECOVERY" : "FULL") : "MINIMUM";
+    const selectedPlan = {
+      ...workout,
+      blocks,
+      duration_minutes: doseMode === "minimum" ? Math.min(workout.duration_minutes, 6) : doseMode === "short" ? Math.min(workout.duration_minutes, 12) : workout.duration_minutes,
+    };
     if (userId && userId !== "demo") {
       try {
         await apiFetch("/api/v1/workouts/feedback", {
@@ -91,8 +99,8 @@ export default function WorkoutPage() {
           body: JSON.stringify({
             user_id: userId,
             workout_date: workout.date,
-            status: doseMode === "full" ? (workout.kind === "RECOVERY" ? "RECOVERY" : "FULL") : "MINIMUM",
-            workout_plan: workout,
+            status,
+            workout_plan: selectedPlan,
             session_rpe: feedback.rpe,
             rir: feedback.rir,
             soreness: feedback.soreness,
@@ -103,7 +111,7 @@ export default function WorkoutPage() {
           }),
         });
       } catch (submitError) {
-        setError(submitError instanceof Error ? submitError.message : "Feedback could not be saved.");
+        setError(submitError instanceof Error ? submitError.message : "反馈保存失败。");
         return;
       }
     }
@@ -117,32 +125,32 @@ export default function WorkoutPage() {
       <div className="workout-page">
         <header className="workout-header">
           <div>
-            <p className="eyebrow">Session / {workout.date}</p>
-            <h1>{workout.kind === "RECOVERY" ? <><span>Recover</span><br /><em>on purpose.</em></> : <><span>Keep the</span><br /><em>promise.</em></>}</h1>
+            <p className="eyebrow">训练 / {workout.date}</p>
+            <h1>{workout.kind === "RECOVERY" ? <><span>主动</span><br /><em>恢复。</em></> : <><span>守住</span><br /><em>承诺。</em></>}</h1>
           </div>
           <div>
             <div className="timer">{String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</div>
-            <div className="mode-toggle"><button className={mode === "manual" ? "active" : ""} onClick={() => setMode("manual")}>MANUAL</button><button className={mode === "camera" ? "active" : ""} onClick={() => setMode("camera")}>CAMERA</button></div>
+            <div className="mode-toggle"><button className={mode === "manual" ? "active" : ""} onClick={() => setMode("manual")}>手动</button><button className={mode === "camera" ? "active" : ""} onClick={() => setMode("camera")}>摄像头</button></div>
           </div>
         </header>
         <div className="workout-layout">
           <section className="workout-list">
-            <div className="panel-heading"><div><p className="eyebrow">{workout.focus}</p><h2>{doseMode === "minimum" ? "Minimum workout" : doseMode === "short" ? "Rescue workout" : workout.title}</h2></div><span className="state-tag tag-lime">{doseMode === "minimum" ? "6 MIN" : doseMode === "short" ? "12 MIN" : `${workout.duration_minutes} MIN`}</span></div>
+            <div className="panel-heading"><div><p className="eyebrow">{workout.focus}</p><h2>{doseMode === "minimum" ? "最小训练" : doseMode === "short" ? "救援训练" : workout.title}</h2></div><span className="state-tag tag-lime">{doseMode === "minimum" ? "6 分钟" : doseMode === "short" ? "12 分钟" : `${workout.duration_minutes} 分钟`}</span></div>
             {mode === "manual" ? <>
               {blocks.length ? blocks.map((block, index) => {
                 const completed = completedSets[index] ?? 0;
                 return <button className={`workout-block ${activeBlock === index ? "active" : ""} ${completed >= block.sets ? "complete" : ""}`} key={`${block.exercise_id}-${index}`} onClick={() => setActiveBlock(index)} aria-pressed={activeBlock === index}>
-                  <span className="block-marker">0{index + 1}</span><span><span className="block-name">{block.name}</span><span className="block-intent">{block.intent}</span><span className="block-progress">{completed}/{block.sets} sets complete</span></span><span className="block-dose">{block.sets} × {block.reps ?? `${block.duration_seconds}s`}</span>
+                  <span className="block-marker">0{index + 1}</span><span><span className="block-name">{block.name}</span><span className="block-intent">{block.intent}</span><span className="block-progress">{completed}/{block.sets} 组已完成</span></span><span className="block-dose">{block.sets} × {block.reps ?? `${block.duration_seconds} 秒`}</span>
                 </button>;
-              }) : <div className="empty-state">Planned recovery. Use the timer for a gentle reset, or log the day as complete.</div>}
-              {blocks.length > 0 && <div className="set-controls"><div className="field-help">Current block: {activeBlock + 1} / {blocks.length}</div><div className="set-actions"><button className="button button-primary" onClick={markSetComplete}>MARK SET COMPLETE ↗</button><button className="button button-secondary" onClick={() => setActiveBlock((current) => Math.max(0, current - 1))}>← PREVIOUS</button><button className="button button-secondary" onClick={nextExercise}>NEXT EXERCISE →</button></div></div>}
+              }) : <div className="empty-state">今天是计划恢复日。可以用计时器做轻量活动，也可以直接记录完成。</div>}
+              {blocks.length > 0 && <div className="set-controls"><div className="field-help">当前动作：{activeBlock + 1} / {blocks.length}</div><div className="set-actions"><button className="button button-primary" onClick={markSetComplete}>标记完成一组 ↗</button><button className="button button-secondary" onClick={() => setActiveBlock((current) => Math.max(0, current - 1))}>← 上一个</button><button className="button button-secondary" onClick={nextExercise}>下一个 →</button></div></div>}
             </> : <CameraPanel />}
-            <div className="workout-buttons"><button className="button button-primary" onClick={() => setRunning((value) => !value)}>{running ? "PAUSE TIMER" : "START TIMER"}<span>{running ? "Ⅱ" : "▶"}</span></button><div className="dose-buttons"><button className={`button ${doseMode === "full" ? "button-primary" : "button-secondary"}`} onClick={() => setDoseMode("full")}>FULL</button><button className={`button ${doseMode === "short" ? "button-primary" : "button-secondary"}`} onClick={() => setDoseMode("short")}>RESCUE</button><button className={`button ${doseMode === "minimum" ? "button-primary" : "button-secondary"}`} onClick={() => setDoseMode("minimum")}>MINIMUM</button></div><button className="button button-secondary" onClick={finishSession} disabled={recorded}>{done ? "FEEDBACK BELOW" : "FINISH SESSION"}</button><button className="button button-secondary zero-button" onClick={recordZeroDay} disabled={recorded}>LOG ZERO DAY</button></div>
+            <div className="workout-buttons"><button className="button button-primary" onClick={() => setRunning((value) => !value)}>{running ? "暂停计时" : "开始计时"}<span>{running ? "Ⅱ" : "▶"}</span></button><div className="dose-buttons"><button className={`button ${doseMode === "full" ? "button-primary" : "button-secondary"}`} onClick={() => setDoseMode("full")}>完整</button><button className={`button ${doseMode === "short" ? "button-primary" : "button-secondary"}`} onClick={() => setDoseMode("short")}>救援</button><button className={`button ${doseMode === "minimum" ? "button-primary" : "button-secondary"}`} onClick={() => setDoseMode("minimum")}>最小</button></div><button className="button button-secondary" onClick={finishSession} disabled={recorded}>{done ? "填写反馈" : "结束训练"}</button><button className="button button-secondary zero-button" onClick={recordZeroDay} disabled={recorded}>记录 ZERO 日</button></div>
           </section>
-          <aside className="camera-card" id="minimum"><p className="eyebrow">Signal check</p><div className="camera-frame"><div><span>{mode === "camera" ? "POSE / CONFIDENCE REQUIRED" : "MANUAL MODE READY"}</span><p>{mode === "camera" ? "The browser preview is local only. If framing, lighting, or confidence is not enough, NOZEERO will say unable to determine." : "No camera required. Count your reps, keep the range comfortable, and use the cues beside each block."}</p></div></div><p className="field-help">Raw video is not saved or uploaded by default. Only the derived result is eligible for storage.</p></aside>
+          <aside className="camera-card" id="minimum"><p className="eyebrow">信号检查</p><div className="camera-frame"><div><span>{mode === "camera" ? "需要姿态 / 置信度" : "手动模式就绪"}</span><p>{mode === "camera" ? "浏览器画面只在本地预览。当前版本没有宣称自动计数；构图、光线或置信度不足时会显示无法判断。" : "无需摄像头。按自己的节奏计数，保持舒适活动范围，并使用每个动作旁的提示。"}</p></div></div><p className="field-help">原始视频默认不会保存或上传，只有经过计算的结果才可能进入记录。</p></aside>
         </div>
-        {done && <section className="feedback-card"><p className="eyebrow">Session closed</p><h2>{zeroDay ? "A zero day is still a visible choice." : "Good. Now tell the system what it should learn."}</h2>{!zeroDay && <><div className="form-grid"><div className="field"><label>Session RPE / {feedback.rpe}</label><input type="range" min="0" max="10" value={feedback.rpe} onChange={(e) => setFeedback({ ...feedback, rpe: Number(e.target.value) })} /></div><div className="field"><label>RIR / {feedback.rir}</label><input type="range" min="0" max="5" value={feedback.rir} onChange={(e) => setFeedback({ ...feedback, rir: Number(e.target.value) })} /></div><div className="field"><label>Soreness / {feedback.soreness}</label><input type="range" min="0" max="10" value={feedback.soreness} onChange={(e) => setFeedback({ ...feedback, soreness: Number(e.target.value) })} /></div><div className="field"><label>Pain / {feedback.pain}</label><input type="range" min="0" max="10" value={feedback.pain} onChange={(e) => setFeedback({ ...feedback, pain: Number(e.target.value) })} /></div><div className="field"><label>Fatigue / {feedback.fatigue}</label><input type="range" min="0" max="10" value={feedback.fatigue} onChange={(e) => setFeedback({ ...feedback, fatigue: Number(e.target.value) })} /></div><div className="field"><label>Enjoyment / {feedback.enjoyment}</label><input type="range" min="0" max="10" value={feedback.enjoyment} onChange={(e) => setFeedback({ ...feedback, enjoyment: Number(e.target.value) })} /></div><div className="field field-wide"><label htmlFor="session-notes">Notes</label><textarea id="session-notes" value={feedback.notes} onChange={(e) => setFeedback({ ...feedback, notes: e.target.value })} placeholder="What should the next session know?" /></div></div></>}
-          <div className="flow-actions"><span className={error ? "error-message" : "field-help"}>{error || (recorded ? `Recorded as ${statusLabel}. Recovery can protect the next session.` : "These values influence the next plan.")}</span>{!recorded && <button className="button button-primary" onClick={recordFeedback}>SAVE FEEDBACK ↗</button>}</div></section>}
+        {done && <section className="feedback-card"><p className="eyebrow">训练已关闭</p><h2>{zeroDay ? "ZERO 日也是一次清晰的选择。" : "很好。现在告诉系统下一次需要知道什么。"}</h2>{!zeroDay && <><div className="form-grid"><div className="field"><label>训练 RPE / {feedback.rpe}</label><input type="range" min="0" max="10" value={feedback.rpe} onChange={(e) => setFeedback({ ...feedback, rpe: Number(e.target.value) })} /></div><div className="field"><label>RIR / {feedback.rir}</label><input type="range" min="0" max="5" value={feedback.rir} onChange={(e) => setFeedback({ ...feedback, rir: Number(e.target.value) })} /></div><div className="field"><label>酸痛 / {feedback.soreness}</label><input type="range" min="0" max="10" value={feedback.soreness} onChange={(e) => setFeedback({ ...feedback, soreness: Number(e.target.value) })} /></div><div className="field"><label>疼痛 / {feedback.pain}</label><input type="range" min="0" max="10" value={feedback.pain} onChange={(e) => setFeedback({ ...feedback, pain: Number(e.target.value) })} /></div><div className="field"><label>疲劳 / {feedback.fatigue}</label><input type="range" min="0" max="10" value={feedback.fatigue} onChange={(e) => setFeedback({ ...feedback, fatigue: Number(e.target.value) })} /></div><div className="field"><label>愉悦度 / {feedback.enjoyment}</label><input type="range" min="0" max="10" value={feedback.enjoyment} onChange={(e) => setFeedback({ ...feedback, enjoyment: Number(e.target.value) })} /></div><div className="field field-wide"><label htmlFor="session-notes">备注</label><textarea id="session-notes" value={feedback.notes} onChange={(e) => setFeedback({ ...feedback, notes: e.target.value })} placeholder="下一次训练需要知道什么？" /></div></div></>}
+          <div className="flow-actions"><span className={error ? "error-message" : "field-help"}>{error || (recorded ? `已记录为 ${statusLabel}。恢复可以保护下一次训练。` : "这些数值会影响下一份计划。")}</span>{!recorded && <button className="button button-primary" onClick={recordFeedback}>保存反馈 ↗</button>}</div></section>}
       </div>
     </AppShell>
   );

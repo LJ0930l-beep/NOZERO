@@ -8,14 +8,14 @@ export function CameraPanel() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [state, setState] = useState<CameraState>("IDLE");
-  const [message, setMessage] = useState("Camera is optional. Manual mode is always ready.");
+  const [message, setMessage] = useState("摄像头是可选项，手动模式随时可用。");
 
   useEffect(() => () => stream?.getTracks().forEach((track) => track.stop()), [stream]);
 
   async function startCamera() {
     if (!navigator.mediaDevices?.getUserMedia) {
       setState("UNAVAILABLE");
-      setMessage("This browser does not expose a camera. Continue in Manual Mode.");
+      setMessage("当前浏览器没有提供摄像头，请继续使用手动模式。");
       return;
     }
     try {
@@ -23,10 +23,10 @@ export function CameraPanel() {
       if (videoRef.current) videoRef.current.srcObject = nextStream;
       setStream(nextStream);
       setState("PREVIEW_ONLY");
-      setMessage("Local preview only. Pose analysis is not claimed until calibration and confidence are GOOD.");
+      setMessage("当前仅为本地预览；完成校准并达到 GOOD 置信度前，不会宣称自动计数。");
     } catch {
       setState("BLOCKED");
-      setMessage("Camera permission was not granted. Nothing was uploaded; use Manual Mode instead.");
+      setMessage("未获得摄像头权限，没有任何内容上传；请改用手动模式。");
     }
   }
 
@@ -34,16 +34,16 @@ export function CameraPanel() {
     stream?.getTracks().forEach((track) => track.stop());
     setStream(null);
     setState("IDLE");
-    setMessage("Camera is optional. Manual mode is always ready.");
+    setMessage("摄像头是可选项，手动模式随时可用。");
   }
 
   return (
     <div>
       <div className="camera-frame camera-preview">
-        {stream ? <video ref={videoRef} autoPlay muted playsInline aria-label="Local camera preview" /> : <div><span>CAMERA CALIBRATION</span><p>{message}</p></div>}
+        {stream ? <video ref={videoRef} autoPlay muted playsInline aria-label="本地摄像头预览" /> : <div><span>摄像头校准</span><p>{message}</p></div>}
       </div>
-      <div className="camera-status"><span className={state === "PREVIEW_ONLY" ? "status-pip" : ""} />{state === "PREVIEW_ONLY" ? "PREVIEW ONLY / NO UPLOAD" : message}</div>
-      <button className="button button-secondary camera-action" onClick={stream ? stopCamera : startCamera}>{stream ? "STOP CAMERA" : "ENABLE LOCAL PREVIEW"}</button>
+      <div className="camera-status"><span className={state === "PREVIEW_ONLY" ? "status-pip" : ""} />{state === "PREVIEW_ONLY" ? "仅本地预览 / 不上传" : message}</div>
+      <button className="button button-secondary camera-action" onClick={stream ? stopCamera : startCamera}>{stream ? "关闭摄像头" : "启用本地预览"}</button>
     </div>
   );
 }

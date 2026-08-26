@@ -27,7 +27,7 @@
     "common_mistakes": ["knees collapse inward", "heels lift", "loss of trunk control"],
     "coaching_cues": ["keep the whole foot grounded", "move slowly and stay within a pain-free range"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -58,7 +58,7 @@
     "common_mistakes": ["using the wall to pull up"],
     "coaching_cues": ["use the wall for balance, not momentum"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -89,7 +89,7 @@
     "common_mistakes": ["front knee caves inward", "unstable stance"],
     "coaching_cues": ["use a stable stance and control the descent"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -120,7 +120,7 @@
     "common_mistakes": ["rushing the eccentric"],
     "coaching_cues": ["take three seconds to lower and keep your balance"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -151,7 +151,7 @@
     "common_mistakes": ["head reaches first", "elbows flare"],
     "coaching_cues": ["keep the body in one line and move as one unit"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -182,7 +182,7 @@
     "common_mistakes": ["hips sag", "elbows flare"],
     "coaching_cues": ["brace the ribs and lower under control"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -213,7 +213,7 @@
     "common_mistakes": ["lumbar extension", "neck craning", "partial range"],
     "coaching_cues": ["keep a straight line from head to heel and use a controlled range"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -244,7 +244,7 @@
     "common_mistakes": ["losing trunk position"],
     "coaching_cues": ["slow the lowering phase without sacrificing alignment"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -275,7 +275,7 @@
     "common_mistakes": ["collapsing shoulders"],
     "coaching_cues": ["push the floor away and keep the neck comfortable"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -306,7 +306,7 @@
     "common_mistakes": ["arching the back", "rushing the lowering"],
     "coaching_cues": ["finish with the glutes, not the low back"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -337,7 +337,7 @@
     "common_mistakes": ["pelvis rotates"],
     "coaching_cues": ["keep both hip bones level"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -368,7 +368,7 @@
     "common_mistakes": ["ribs flare", "low back lifts"],
     "coaching_cues": ["exhale gently and keep the trunk quiet"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -399,7 +399,7 @@
     "common_mistakes": ["hips sag", "holding breath"],
     "coaching_cues": ["make a long line and breathe behind the brace"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -430,7 +430,7 @@
     "common_mistakes": ["hips rocking", "shrugging"],
     "coaching_cues": ["move slowly and keep the pelvis facing the floor"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -461,7 +461,7 @@
     "common_mistakes": ["hips rotate forward"],
     "coaching_cues": ["keep the ribs stacked over the pelvis"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -492,7 +492,7 @@
     "common_mistakes": ["holding breath"],
     "coaching_cues": ["keep the pace smooth enough to speak in short sentences"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -523,7 +523,7 @@
     "common_mistakes": ["landing stiffly"],
     "coaching_cues": ["land softly or use the low-impact step version"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -554,7 +554,7 @@
     "common_mistakes": ["forcing range"],
     "coaching_cues": ["move through a comfortable range with relaxed breathing"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -585,7 +585,7 @@
     "common_mistakes": ["forcing end range"],
     "coaching_cues": ["smooth range matters more than depth"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -616,7 +616,7 @@
     "common_mistakes": ["rounding the back", "using momentum"],
     "coaching_cues": ["keep the spine long and pull the elbows toward the ribs"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -647,7 +647,7 @@
     "common_mistakes": ["snapping the band", "shrugging"],
     "coaching_cues": ["keep the band path controlled and shoulders away from ears"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -678,7 +678,7 @@
     "common_mistakes": ["front knee collapses", "pushing off the back foot"],
     "coaching_cues": ["step back softly and keep the front foot grounded"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -709,7 +709,7 @@
     "common_mistakes": ["unstable stance", "rushing the bottom position"],
     "coaching_cues": ["keep the stance stable and control both directions"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -740,7 +740,7 @@
     "common_mistakes": ["rounding the back", "squatting instead of hinging"],
     "coaching_cues": ["send the hips back and keep the ribs stacked"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -771,7 +771,7 @@
     "common_mistakes": ["load drifts away", "rounding under fatigue"],
     "coaching_cues": ["keep the load close and finish with the hips"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   },
   {
@@ -802,7 +802,7 @@
     "common_mistakes": ["pulling the neck", "holding breath"],
     "coaching_cues": ["curl from the ribs and keep the neck relaxed"],
     "version": "1.0.0",
-    "source": "NOZEERO original rule set",
+    "source": "NO ZERO curated rule set",
     "review_status": "REVIEWED"
   }
 ]

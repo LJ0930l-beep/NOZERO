@@ -13,11 +13,26 @@ from ai.ollama.service import LocalAIService
 from backend.app.core.config import Settings
 from backend.app.core.errors import ResourceNotFoundError, SafetyBlockedError
 from backend.app.engines.assessment.engine import assess_dimensions
-from backend.app.engines.discipline.engine import achievements, consistency, discipline_level, streaks, xp_for_status
+from backend.app.engines.discipline.engine import (
+    achievements,
+    consistency,
+    discipline_level,
+    plan_adherence,
+    plan_streak,
+    streaks,
+    xp_for_status,
+)
+from backend.app.engines.progression.engine import (
+    apply_progression_states_to_plan,
+    update_progression_state,
+)
 from backend.app.engines.recovery.engine import assess_recovery
 from backend.app.engines.safety.engine import screen_safety
-from backend.app.engines.training.engine import generate_cycle
-from backend.app.repositories.sqlite_repository import SQLiteRepository
+from backend.app.engines.safety.restrictions import filter_exercises, resolve_restrictions
+from backend.app.engines.time_windows import parse_local_date, records_in_window
+from backend.app.engines.training.engine import build_minimum_workout, build_short_workout, generate_cycle
+from backend.app.engines.training.load import aerobic_dose, calculate_training_load, weekly_cardio_target
+from backend.app.repositories.sqlite_repository import SQLiteRepository, utc_now
 from backend.app.schemas.domain import (
     AssessmentRequest,
     CoachRequest,
@@ -51,6 +66,9 @@ def public_user(row: dict[str, Any]) -> dict[str, Any]:
             "movement_pain": row["movement_pain"],
             "abnormal_symptoms": row["abnormal_symptoms"],
             "medical_exercise_restriction": row["medical_exercise_restriction"],
+            "exercise_chest_pain": bool(row.get("exercise_chest_pain", 0)),
+            "fainting_or_dizziness": bool(row.get("fainting_or_dizziness", 0)),
+            "unusual_shortness_of_breath": bool(row.get("unusual_shortness_of_breath", 0)),
         },
         "safety_status": row["safety_status"],
     }
@@ -77,6 +95,8 @@ class ApplicationService:
             "blockers": safety_result.blockers,
             "cautions": safety_result.cautions,
             "recommended_action": safety_result.recommended_action,
+            "blocked_tags": safety_result.blocked_tags,
+            "caution_tags": safety_result.caution_tags,
         }
         return result
 
@@ -86,7 +106,66 @@ class ApplicationService:
             raise ResourceNotFoundError(f"user {user_id} not found")
         return row
 
+    def _settle_recovery_days(self, cycle: dict[str, Any], reference: date) -> None:
+        """Materialize due planned recovery without inventing a workout session."""
+
+        executions = self.repository.list_plan_executions(cycle["user_id"], cycle["id"])
+        status_by_date = {str(item.get("plan_date")): str(item.get("status")) for item in executions}
+        for workout in cycle.get("weekly_plan", []):
+            workout_date = parse_local_date(workout.get("date"))
+            if workout_date is None or workout_date > reference or workout.get("kind") != "RECOVERY":
+                continue
+            if status_by_date.get(str(workout.get("date"))) in {None, "DUE"}:
+                self.repository.upsert_plan_execution(
+                    cycle["user_id"],
+                    cycle["id"],
+                    str(workout["date"]),
+                    "RECOVERY",
+                    "RECOVERY",
+                )
+
+    @staticmethod
+    def _selected_workout_plan(request: WorkoutFeedbackRequest, status: str) -> dict[str, Any]:
+        """Persist the dose actually executed, not the unmodified full plan."""
+
+        plan = dict(request.workout_plan)
+        if status == "MINIMUM" and isinstance(plan.get("minimum_workout"), list):
+            plan["blocks"] = plan["minimum_workout"]
+            plan["duration_minutes"] = min(int(plan.get("duration_minutes") or 0), 6)
+        elif status == "RECOVERY" and plan.get("kind") != "RECOVERY":
+            plan["blocks"] = []
+            plan["duration_minutes"] = 0
+        return plan
+
+    def _refresh_progression(self, user_id: str, workout_plan: dict[str, Any], after_date: str) -> None:
+        catalog = self.repository.list_exercises()
+        exercise_lookup = {str(item["id"]): item for item in catalog}
+        sessions = self.repository.list_sessions(user_id)
+        existing = {str(item["exercise_id"]): item for item in self.repository.list_progression_states(user_id)}
+        blocks = workout_plan.get("blocks") if isinstance(workout_plan.get("blocks"), list) else []
+        for block in blocks:
+            if not isinstance(block, dict):
+                continue
+            exercise_id = str(block.get("exercise_id"))
+            exercise = exercise_lookup.get(exercise_id)
+            if not exercise:
+                continue
+            state = update_progression_state(user_id, exercise, sessions, existing.get(exercise_id))
+            state["updated_at"] = utc_now()
+            existing[exercise_id] = self.repository.save_progression_state(state)
+        cycle = self.repository.latest_cycle(user_id)
+        if cycle and existing:
+            updated_plan = apply_progression_states_to_plan(
+                cycle.get("weekly_plan", []), existing, exercise_lookup, after_date
+            )
+            for workout in updated_plan:
+                if workout.get("kind") == "TRAINING":
+                    workout["short_workout"] = build_short_workout(workout, 3)
+                    workout["minimum_workout"] = build_minimum_workout(workout, 2)
+            self.repository.update_cycle_plan(cycle["id"], updated_plan)
+
     def exercises_for_user(self, user_id: str | None = None, **filters: Any) -> list[dict[str, Any]]:
+        resolution = None
         if user_id:
             user = self.get_user_or_raise(user_id)
             filters = {
@@ -95,7 +174,20 @@ class ApplicationService:
                 "jumping_allowed": bool(user["jumping_allowed"]),
                 "available_space": user["available_space"],
             }
-        return self.repository.list_exercises(**filters)
+            resolution = resolve_restrictions(
+                {
+                    "known_medical_restrictions": user["known_medical_restrictions"],
+                    "recent_injury": user["recent_injury"],
+                    "movement_pain": user["movement_pain"],
+                    "abnormal_symptoms": user["abnormal_symptoms"],
+                    "medical_exercise_restriction": user["medical_exercise_restriction"],
+                    "exercise_chest_pain": bool(user.get("exercise_chest_pain", 0)),
+                    "fainting_or_dizziness": bool(user.get("fainting_or_dizziness", 0)),
+                    "unusual_shortness_of_breath": bool(user.get("unusual_shortness_of_breath", 0)),
+                }
+            )
+        exercises = self.repository.list_exercises(**filters)
+        return filter_exercises(exercises, resolution) if resolution else exercises
 
     def assess(self, request: AssessmentRequest) -> dict[str, Any]:
         self.get_user_or_raise(request.user_id)
@@ -143,24 +235,35 @@ class ApplicationService:
             raise ValueError("complete the multidimensional assessment before generating a plan")
         start = request.start_date or date.today()
         exercises = self.exercises_for_user(request.user_id)
-        recent_sessions = self.repository.list_sessions(request.user_id)
-        weekly_volume = sum(
-            int(item.get("workout_plan", {}).get("duration_minutes", 0))
-            for item in recent_sessions[-7:]
-            if isinstance(item.get("workout_plan"), dict)
-        )
-        latest_session = recent_sessions[-1] if recent_sessions else {}
+        all_sessions = self.repository.list_sessions(request.user_id)
+        recent_sessions = records_in_window(all_sessions, start, 90)
+        catalog = self.repository.list_exercises()
+        wellness_logs = self.repository.list_wellness(request.user_id)
+        load = calculate_training_load(recent_sessions, catalog, start, 7, wellness_logs)
+        recent_7 = records_in_window(recent_sessions, start, 7)
+        successful_dates = {
+            parse_local_date(item.get("workout_date"))
+            for item in recent_7
+            if item.get("status") in {"FULL", "MINIMUM", "RECOVERY"}
+        }
+        successful_dates.discard(None)
+        latest_session = recent_7[-1] if recent_7 else {}
         recovery = assess_recovery(
             latest_session.get("soreness"),
             latest_session.get("pain"),
             latest_session.get("fatigue"),
             latest_session.get("session_rpe"),
-            weekly_volume,
-            muscle_group_exposure_minutes=weekly_volume,
-            training_frequency=len(recent_sessions[-7:]),
+            int(load.total_training_minutes),
+            muscle_group_exposure_minutes=0,
+            training_frequency=len(successful_dates),
             completion_rate=1.0 if latest_session.get("status") in {"FULL", "RECOVERY"} else 0.5,
             enjoyment=latest_session.get("enjoyment"),
+            muscle_group_exposure=load.muscle_sets,
+            pattern_exposure=load.recent_pattern_sets,
         )
+        progression_states = {
+            str(item["exercise_id"]): item for item in self.repository.list_progression_states(request.user_id)
+        }
         weekly_plan = generate_cycle(
             profile=user,
             exercises=exercises,
@@ -169,19 +272,39 @@ class ApplicationService:
             cycle_days=request.cycle_days,
             recent_sessions=recent_sessions,
             recovery_status=recovery.status,
+            recent_load=load.as_dict(),
+            progression_states=progression_states,
         )
-        return self.repository.create_cycle(
+        cycle = self.repository.create_cycle(
             request.user_id,
             start.isoformat(),
             (start + timedelta(days=request.cycle_days - 1)).isoformat(),
             user["primary_goal"],
             user["secondary_focus"],
             weekly_plan,
+            weekly_cardio_target(user, assessment["dimensions"], 0),
         )
+        self.repository.seed_plan_executions(cycle)
+        cycle["cardio_minutes_completed"] = round(load.cardio_minutes + load.daily_movement_minutes, 1)
+        return cycle
 
     def current_plan(self, user_id: str) -> dict[str, Any] | None:
         self.get_user_or_raise(user_id)
-        return self.repository.latest_cycle(user_id)
+        cycle = self.repository.latest_cycle(user_id)
+        if not cycle:
+            return None
+        self.repository.seed_plan_executions(cycle)
+        self._settle_recovery_days(cycle, date.today())
+        catalog = self.repository.list_exercises()
+        load = calculate_training_load(
+            self.repository.list_sessions(user_id),
+            catalog,
+            date.today(),
+            7,
+            self.repository.list_wellness(user_id),
+        )
+        cycle["cardio_minutes_completed"] = round(load.cardio_minutes + load.daily_movement_minutes, 1)
+        return cycle
 
     def today_workout(self, user_id: str, requested_date: date | None = None) -> dict[str, Any] | None:
         cycle = self.current_plan(user_id)
@@ -196,21 +319,33 @@ class ApplicationService:
     def record_feedback(self, request: WorkoutFeedbackRequest) -> dict[str, Any]:
         self.get_user_or_raise(request.user_id)
         recent = self.repository.list_sessions(request.user_id)
-        weekly_volume = sum(
-            int(item.get("workout_plan", {}).get("duration_minutes", 0))
-            for item in recent[-7:]
-            if isinstance(item.get("workout_plan"), dict)
+        catalog = self.repository.list_exercises()
+        recent_window = records_in_window(recent, request.workout_date, 7)
+        load = calculate_training_load(
+            recent,
+            catalog,
+            request.workout_date,
+            7,
+            self.repository.list_wellness(request.user_id),
         )
+        successful_dates = {
+            parse_local_date(item.get("workout_date"))
+            for item in recent_window
+            if item.get("status") in {"FULL", "MINIMUM", "RECOVERY"}
+        }
+        successful_dates.discard(None)
         recovery = assess_recovery(
             request.soreness,
             request.pain,
             request.fatigue,
             request.session_rpe,
-            weekly_volume,
-            muscle_group_exposure_minutes=weekly_volume,
-            training_frequency=len(recent[-7:]),
+            int(load.total_training_minutes),
+            muscle_group_exposure_minutes=0,
+            training_frequency=len(successful_dates),
             completion_rate={"FULL": 1.0, "MINIMUM": 0.5, "RECOVERY": 1.0, "ZERO": 0.0}.get(request.status, 0.0),
             enjoyment=request.enjoyment,
+            muscle_group_exposure=load.muscle_sets,
+            pattern_exposure=load.recent_pattern_sets,
         )
         status = request.status
         if request.pain is not None and request.pain >= 4:
@@ -220,7 +355,24 @@ class ApplicationService:
         xp = xp_for_status(status)
         payload = request.model_dump()
         payload["status"] = status
+        payload["workout_plan"] = self._selected_workout_plan(request, status)
         session = self.repository.create_session(payload, xp)
+        cycle = self.repository.latest_cycle(request.user_id)
+        if cycle:
+            workout = next(
+                (item for item in cycle.get("weekly_plan", []) if item.get("date") == request.workout_date.isoformat()),
+                None,
+            )
+            if workout:
+                self.repository.upsert_plan_execution(
+                    request.user_id,
+                    cycle["id"],
+                    request.workout_date.isoformat(),
+                    workout.get("kind", "TRAINING"),
+                    status,
+                    session["id"],
+                )
+        self._refresh_progression(request.user_id, payload["workout_plan"], request.workout_date.isoformat())
         memory_updates = MemoryManager.select_updates(
             {
                 "fatigue_pattern": f"last={request.fatigue}/10" if request.fatigue is not None else None,
@@ -255,7 +407,15 @@ class ApplicationService:
         user = self.get_user_or_raise(user_id)
         sessions = self.repository.list_sessions(user_id)
         assessments = self.repository.list_assessments(user_id)
-        current_streak, longest_streak = streaks(sessions)
+        today = date.today()
+        cycle = self.current_plan(user_id)
+        executions = self.repository.list_plan_executions(user_id, cycle["id"] if cycle else None)
+        if cycle:
+            current_streak, longest_streak = plan_streak(cycle["weekly_plan"], executions, today)
+            adherence = plan_adherence(cycle["weekly_plan"], executions, today)
+        else:
+            current_streak, longest_streak = streaks(sessions, today)
+            adherence = {"completed": 0, "planned": 0, "percentage": 0.0, "recovery_days": 0, "zero_days": 0}
         assessment = self.repository.latest_assessment(user_id)
         levels = (
             assessment["dimensions"]
@@ -272,7 +432,8 @@ class ApplicationService:
             "user": public_user(user),
             "current_streak": current_streak,
             "longest_streak": longest_streak,
-            "consistency": consistency(sessions),
+            "consistency": consistency(sessions, today),
+            "activity_consistency": consistency(sessions, today),
             "total_training_minutes": total_minutes,
             "fitness_levels": levels,
             "assessment_history": assessments,
@@ -280,13 +441,24 @@ class ApplicationService:
             "discipline_level": discipline_level(self.repository.total_xp(user_id)),
             "achievements": achievements(sessions, self.repository.total_xp(user_id)),
             "xp": self.repository.total_xp(user_id),
-            "next_workout": self.today_workout(user_id),
+            "next_workout": self.today_workout(user_id, today),
+            "plan_adherence": adherence,
+            "aerobic_dose": aerobic_dose(
+                calculate_training_load(
+                    sessions,
+                    self.repository.list_exercises(),
+                    today,
+                    7,
+                    self.repository.list_wellness(user_id),
+                ),
+                int(cycle.get("weekly_cardio_target_minutes", 0)) if cycle else 0,
+            ),
         }
 
     def weekly_review(self, user_id: str) -> dict[str, Any]:
         self.get_user_or_raise(user_id)
         sessions = self.repository.list_sessions(user_id)
-        metrics = WeeklyReview.summarize(sessions, self.repository.list_assessments(user_id))
+        metrics = WeeklyReview.summarize(sessions, self.repository.list_assessments(user_id), date.today())
         next_recommendation = "progress one variable from recent quality completion"
         if metrics["recovery_days"] or metrics["minimum_days"] > metrics["full_days"]:
             next_recommendation = "keep the plan conservative and protect recovery before adding volume"

@@ -19,6 +19,9 @@ export type DailyWorkout = {
   blocks: WorkoutBlock[];
   short_workout: WorkoutBlock[];
   minimum_workout: WorkoutBlock[];
+  week_number?: number;
+  phase?: string;
+  cardio_target_minutes?: number;
 };
 
 export type User = {
@@ -45,6 +48,9 @@ export type Dashboard = {
   discipline_level: string;
   xp: number;
   next_workout: DailyWorkout | null;
+  plan_adherence: { completed: number; planned: number; percentage: number; recovery_days?: number; zero_days?: number };
+  activity_consistency?: Record<string, { completed: number; planned: number; percentage: number }>;
+  aerobic_dose: { target_minutes: number; completed_minutes: number; percentage: number };
 };
 
 export type CoachResponse = {

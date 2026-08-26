@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -62,6 +62,9 @@ class SQLiteRepository:
             safety.get("movement_pain", ""),
             safety.get("abnormal_symptoms", ""),
             safety.get("medical_exercise_restriction", ""),
+            int(bool(safety.get("exercise_chest_pain", False))),
+            int(bool(safety.get("fainting_or_dizziness", False))),
+            int(bool(safety.get("unusual_shortness_of_breath", False))),
             safety_status,
         )
         with self.database.connect() as connection:
@@ -73,8 +76,10 @@ class SQLiteRepository:
                     session_duration_minutes, available_space, noise_preference,
                     jumping_allowed, equipment_mode, primary_goal, secondary_focus,
                     known_medical_restrictions, recent_injury, movement_pain,
-                    abnormal_symptoms, medical_exercise_restriction, safety_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    abnormal_symptoms, medical_exercise_restriction,
+                    exercise_chest_pain, fainting_or_dizziness, unusual_shortness_of_breath,
+                    safety_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
@@ -129,7 +134,7 @@ class SQLiteRepository:
                         _dump(exercise.get("common_mistakes", [])),
                         _dump(exercise.get("coaching_cues", [])),
                         exercise.get("version", "1.0.0"),
-                        exercise.get("source", "NOZEERO seed"),
+                        exercise.get("source", "NO ZERO seed"),
                         exercise.get("review_status", "REVIEWED"),
                     ),
                 )
@@ -238,6 +243,7 @@ class SQLiteRepository:
         goal: str,
         secondary_focus: str,
         weekly_plan: list[dict[str, Any]],
+        weekly_cardio_target_minutes: int = 0,
     ) -> dict[str, Any]:
         cycle = {
             "id": str(uuid4()),
@@ -247,13 +253,14 @@ class SQLiteRepository:
             "goal": goal,
             "secondary_focus": secondary_focus,
             "weekly_plan": weekly_plan,
+            "weekly_cardio_target_minutes": weekly_cardio_target_minutes,
             "created_at": utc_now(),
         }
         with self.database.connect() as connection:
             connection.execute(
                 (
                     "INSERT INTO training_cycles(id, user_id, start_date, end_date, goal, secondary_focus, "
-                    "weekly_plan, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                    "weekly_plan, created_at, weekly_cardio_target_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 ),
                 (
                     cycle["id"],
@@ -264,6 +271,7 @@ class SQLiteRepository:
                     secondary_focus,
                     _dump(weekly_plan),
                     cycle["created_at"],
+                    weekly_cardio_target_minutes,
                 ),
             )
         return cycle
@@ -278,7 +286,71 @@ class SQLiteRepository:
             return None
         item = dict(row)
         item["weekly_plan"] = _load(item["weekly_plan"], [])
+        item["weekly_cardio_target_minutes"] = int(item.get("weekly_cardio_target_minutes") or 0)
         return item
+
+    def update_cycle_plan(self, cycle_id: str, weekly_plan: list[dict[str, Any]]) -> None:
+        with self.database.connect() as connection:
+            connection.execute(
+                "UPDATE training_cycles SET weekly_plan = ? WHERE id = ?",
+                (_dump(weekly_plan), cycle_id),
+            )
+
+    def seed_plan_executions(self, cycle: dict[str, Any]) -> None:
+        rows = [
+            (
+                cycle["user_id"],
+                cycle["id"],
+                workout["date"],
+                workout["kind"],
+            )
+            for workout in cycle.get("weekly_plan", [])
+        ]
+        if not rows:
+            return
+        with self.database.connect() as connection:
+            connection.executemany(
+                """
+                INSERT OR IGNORE INTO plan_executions(user_id, cycle_id, plan_date, planned_kind, status)
+                VALUES (?, ?, ?, ?, 'DUE')
+                """,
+                rows,
+            )
+
+    def list_plan_executions(self, user_id: str, cycle_id: str | None = None) -> list[dict[str, Any]]:
+        query = "SELECT * FROM plan_executions WHERE user_id = ?"
+        params: list[Any] = [user_id]
+        if cycle_id:
+            query += " AND cycle_id = ?"
+            params.append(cycle_id)
+        query += " ORDER BY plan_date ASC"
+        with self.database.connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        return [dict(row) for row in rows]
+
+    def upsert_plan_execution(
+        self,
+        user_id: str,
+        cycle_id: str,
+        plan_date: str,
+        planned_kind: str,
+        status: str,
+        session_id: str | None = None,
+    ) -> None:
+        with self.database.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO plan_executions(
+                    user_id, cycle_id, plan_date, planned_kind, status, executed_at, session_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, cycle_id, plan_date) DO UPDATE SET
+                    planned_kind = excluded.planned_kind,
+                    status = excluded.status,
+                    executed_at = excluded.executed_at,
+                    session_id = excluded.session_id
+                """,
+                (user_id, cycle_id, plan_date, planned_kind, status, utc_now(), session_id),
+            )
 
     def create_session(self, payload: dict[str, Any], xp: int) -> dict[str, Any]:
         session_id = str(uuid4())
@@ -301,23 +373,57 @@ class SQLiteRepository:
             xp,
         )
         with self.database.connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO workout_sessions(
-                    id, user_id, workout_date, status, workout_plan, started_at,
-                    completed_at, session_rpe, rir, soreness, pain, fatigue,
-                    enjoyment, notes, xp
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                values,
-            )
+            existing = connection.execute(
+                "SELECT id FROM workout_sessions WHERE user_id = ? AND workout_date = ? "
+                "ORDER BY completed_at DESC LIMIT 1",
+                (payload["user_id"], str(payload["workout_date"])),
+            ).fetchone()
+            if existing:
+                session_id = str(existing["id"])
+                values = (session_id, *values[1:])
+                connection.execute(
+                    """
+                    UPDATE workout_sessions SET status = ?, workout_plan = ?, started_at = ?,
+                        completed_at = ?, session_rpe = ?, rir = ?, soreness = ?, pain = ?,
+                        fatigue = ?, enjoyment = ?, notes = ?, xp = ? WHERE id = ?
+                    """,
+                    (
+                        values[3], values[4], values[5], values[6], values[7], values[8],
+                        values[9], values[10], values[11], values[12], values[13], values[14], values[0],
+                    ),
+                )
+            else:
+                connection.execute(
+                    """
+                    INSERT INTO workout_sessions(
+                        id, user_id, workout_date, status, workout_plan, started_at,
+                        completed_at, session_rpe, rir, soreness, pain, fatigue,
+                        enjoyment, notes, xp
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    values,
+                )
         return {"id": session_id, "workout_date": str(payload["workout_date"]), "status": payload["status"], "xp": xp}
 
-    def list_sessions(self, user_id: str) -> list[dict[str, Any]]:
+    def list_sessions(
+        self,
+        user_id: str,
+        start_date: date | str | None = None,
+        end_date: date | str | None = None,
+    ) -> list[dict[str, Any]]:
+        clauses = ["user_id = ?"]
+        params: list[Any] = [user_id]
+        if start_date is not None:
+            clauses.append("workout_date >= ?")
+            params.append(str(start_date))
+        if end_date is not None:
+            clauses.append("workout_date <= ?")
+            params.append(str(end_date))
         with self.database.connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM workout_sessions WHERE user_id = ? ORDER BY workout_date ASC, completed_at ASC",
-                (user_id,),
+                "SELECT * FROM workout_sessions WHERE " + " AND ".join(clauses)
+                + " ORDER BY workout_date ASC, completed_at ASC",
+                params,
             ).fetchall()
         result = []
         for row in rows:
@@ -325,6 +431,60 @@ class SQLiteRepository:
             item["workout_plan"] = _load(item["workout_plan"], {})
             result.append(item)
         return result
+
+    def list_progression_states(self, user_id: str) -> list[dict[str, Any]]:
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM progression_states WHERE user_id = ? ORDER BY exercise_id",
+                (user_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def save_progression_state(self, state: dict[str, Any]) -> dict[str, Any]:
+        values = (
+            state["user_id"],
+            state["exercise_id"],
+            state["current_variation"],
+            state.get("target_reps"),
+            state.get("target_sets"),
+            state.get("last_rpe"),
+            state.get("last_rir"),
+            state.get("decision", "MAINTAIN"),
+            state.get("next_variable", "reps"),
+            int(state.get("consecutive_successes", 0)),
+            int(state.get("consecutive_failures", 0)),
+            state.get("updated_at", utc_now()),
+        )
+        with self.database.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO progression_states(
+                    user_id, exercise_id, current_variation, target_reps, target_sets,
+                    last_rpe, last_rir, decision, next_variable,
+                    consecutive_successes, consecutive_failures, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, exercise_id) DO UPDATE SET
+                    current_variation = excluded.current_variation,
+                    target_reps = excluded.target_reps,
+                    target_sets = excluded.target_sets,
+                    last_rpe = excluded.last_rpe,
+                    last_rir = excluded.last_rir,
+                    decision = excluded.decision,
+                    next_variable = excluded.next_variable,
+                    consecutive_successes = excluded.consecutive_successes,
+                    consecutive_failures = excluded.consecutive_failures,
+                    updated_at = excluded.updated_at
+                """,
+                values,
+            )
+        return dict(zip(
+            (
+                "user_id", "exercise_id", "current_variation", "target_reps", "target_sets",
+                "last_rpe", "last_rir", "decision", "next_variable",
+                "consecutive_successes", "consecutive_failures", "updated_at",
+            ),
+            values,
+        ))
 
     def save_memory(self, user_id: str, memory_key: str, memory_value: str) -> None:
         with self.database.connect() as connection:
@@ -424,6 +584,8 @@ class SQLiteRepository:
             "assessments": self.list_assessments(user_id),
             "training_cycles": [latest_cycle] if latest_cycle else [],
             "workout_sessions": self.list_sessions(user_id),
+            "plan_executions": self.list_plan_executions(user_id),
+            "progression_states": self.list_progression_states(user_id),
             "fitness_memory": self.read_memories(user_id),
             "wellness_logs": self.list_wellness(user_id),
         }
@@ -432,6 +594,7 @@ class SQLiteRepository:
         with self.database.connect() as connection:
             connection.execute("DELETE FROM workout_sessions WHERE user_id = ?", (user_id,))
             connection.execute("DELETE FROM training_cycles WHERE user_id = ?", (user_id,))
+            connection.execute("DELETE FROM progression_states WHERE user_id = ?", (user_id,))
             connection.execute("DELETE FROM assessment_results WHERE user_id = ?", (user_id,))
             connection.execute("DELETE FROM fitness_memory WHERE user_id = ?", (user_id,))
             connection.execute("DELETE FROM wellness_logs WHERE user_id = ?", (user_id,))

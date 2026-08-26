@@ -1,4 +1,4 @@
-"""Centralized configuration for the NOZEERO API."""
+"""Centralized configuration for the NO ZERO API."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def _as_bool(value: str | None, default: bool = False) -> bool:
 
 @dataclass(frozen=True)
 class Settings:
-    app_name: str = os.getenv("APP_NAME", "NOZEERO API")
+    app_name: str = os.getenv("APP_NAME", "NO ZERO API")
     app_env: str = os.getenv("APP_ENV", "development")
     api_host: str = os.getenv("API_HOST", "127.0.0.1")
     api_port: int = int(os.getenv("API_PORT", "8000"))

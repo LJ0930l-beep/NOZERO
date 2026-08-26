@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -11,6 +12,8 @@ class SafetyResult:
     blockers: list[str]
     cautions: list[str]
     recommended_action: str
+    blocked_tags: list[str] = field(default_factory=list)
+    caution_tags: list[str] = field(default_factory=list)
 
 
 RED_FLAGS = {
@@ -35,18 +38,21 @@ CAUTION_TERMS = {
     "限制": "medical exercise restriction",
 }
 NEGATIONS = ("no ", "none", "without", "没有", "无", "否认", "否")
+EMPTY_VALUES = {"", "n/a", "na", "nil", "none", "no", "无", "没有", "否", "否认"}
 
 
-def _active_terms(value: str, terms: dict[str, str]) -> list[str]:
-    text = value.strip().lower()
-    if not text or text in {"n/a", "na", "nil", "none", "无"}:
+def _active_terms(value: Any, terms: dict[str, str]) -> list[str]:
+    if isinstance(value, bool):
+        return []
+    text = str(value or "").strip().lower()
+    if text in EMPTY_VALUES:
         return []
     found: list[str] = []
     for phrase, label in terms.items():
         start = text.find(phrase)
         if start < 0:
             continue
-        prefix = text[max(0, start - 8) : start]
+        prefix = text[max(0, start - 12) : start]
         if any(negation in prefix for negation in NEGATIONS):
             continue
         if label not in found:
@@ -54,24 +60,54 @@ def _active_terms(value: str, terms: dict[str, str]) -> list[str]:
     return found
 
 
-def screen_safety(screening: dict[str, str]) -> SafetyResult:
+def screen_safety(screening: dict[str, Any]) -> SafetyResult:
     blockers: list[str] = []
     cautions: list[str] = []
+    structured_red_flags = {
+        "exercise_chest_pain": "chest pain",
+        "fainting_or_dizziness": "fainting or dizziness",
+        "unusual_shortness_of_breath": "unusual shortness of breath",
+    }
+    for field_name, label in structured_red_flags.items():
+        if screening.get(field_name) is True:
+            blockers.append(label)
     for field_name, value in screening.items():
-        if not value:
+        if value is None or value is False:
             continue
         blockers.extend(_active_terms(value, RED_FLAGS))
         cautions.extend(_active_terms(value, CAUTION_TERMS))
-        if field_name == "known_medical_restrictions" and value.strip():
+        if field_name == "known_medical_restrictions" and str(value).strip().lower() not in EMPTY_VALUES:
             cautions.append("known medical restriction")
-        if field_name == "medical_exercise_restriction" and value.strip():
+        if field_name == "medical_exercise_restriction" and str(value).strip().lower() not in EMPTY_VALUES:
             cautions.append("medical exercise restriction")
     blockers = sorted(set(blockers))
     cautions = sorted(set(cautions) - set(blockers))
+    from backend.app.engines.safety.restrictions import resolve_restrictions
+
+    restriction = resolve_restrictions(screening)
     if blockers:
-        return SafetyResult("BLOCKED", blockers, cautions, "stop normal training and seek professional medical advice")
+        return SafetyResult(
+            "BLOCKED",
+            blockers,
+            cautions,
+            "stop normal training and seek professional medical advice",
+            restriction.blocked_tags,
+            restriction.caution_tags,
+        )
     if cautions:
         return SafetyResult(
-            "CAUTION", [], cautions, "use conservative options and obtain professional guidance where appropriate"
+            "CAUTION",
+            [],
+            cautions,
+            "use conservative options and obtain professional guidance where appropriate",
+            restriction.blocked_tags,
+            restriction.caution_tags,
         )
-    return SafetyResult("SAFE", [], [], "continue with the planned safety-validated session")
+    return SafetyResult(
+        "SAFE",
+        [],
+        [],
+        "continue with the planned safety-validated session",
+        restriction.blocked_tags,
+        restriction.caution_tags,
+    )

@@ -1,1 +1,1 @@
-"""Application package for the NOZEERO API."""
+"""Application package for the NO ZERO API."""

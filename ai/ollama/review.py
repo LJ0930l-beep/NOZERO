@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
+
+from backend.app.engines.time_windows import records_in_window
 
 
 class WeeklyReview:
@@ -34,9 +37,16 @@ class WeeklyReview:
 
     @staticmethod
     def summarize(
-        sessions: list[dict[str, Any]], assessments: list[dict[str, Any]] | None = None
+        sessions: list[dict[str, Any]],
+        assessments: list[dict[str, Any]] | None = None,
+        as_of: date | None = None,
     ) -> dict[str, Any]:
-        recent = sessions[-7:]
+        recent = records_in_window(sessions, as_of or date.today(), 7)
+        # Legacy review callers may provide only structured status/plan facts.
+        # Once a workout_date is present, invalid or out-of-window records are
+        # deliberately excluded instead of being treated as recent.
+        if sessions and not any("workout_date" in item for item in sessions):
+            recent = list(sessions)[max(0, len(sessions) - 7) :]
         successful = [item for item in recent if item.get("status") in {"FULL", "MINIMUM", "RECOVERY"}]
         total_minutes = sum(
             int(item.get("workout_plan", {}).get("duration_minutes", 0))

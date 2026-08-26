@@ -189,3 +189,44 @@ def test_pull_is_explicitly_equipment_limited_and_wellness_is_local() -> None:
         assert summary["body_weight_trend"][0]["weight_kg"] == 74.5
         assert summary["averages"]["steps"] == 8000
         assert client.get(f"/api/v1/users/{minimal}/data/export").json()["wellness_logs"]
+
+
+def test_real_call_chain_persists_plan_adherence_and_progression_state() -> None:
+    with _client() as client:
+        onboarding = client.post(
+            "/api/v1/onboarding",
+            json={
+                "age": 32, "sex": "x", "height_cm": 170, "weight_kg": 70,
+                "training_experience": "beginner", "available_training_days": 3, "session_duration_minutes": 20,
+                "available_space": "SMALL", "noise_preference": "QUIET", "jumping_allowed": False,
+                "equipment_mode": "ZERO", "primary_goal": "strength", "secondary_focus": "full_body", "safety": {},
+            },
+        )
+        user_id = onboarding.json()["id"]
+        assessment = {
+            "user_id": user_id, "push_up_reps": 8, "squat_reps": 20, "plank_seconds": 45,
+            "cardio_minutes": 12, "mobility_score": 60,
+        }
+        assert client.post("/api/v1/assessments", json=assessment).status_code == 201
+        plan = client.post(
+            "/api/v1/plans",
+            json={"user_id": user_id, "cycle_days": 7, "start_date": "2026-08-24"},
+        ).json()
+        training_days = [item for item in plan["weekly_plan"] if item["kind"] == "TRAINING"]
+        for workout in training_days:
+            response = client.post(
+                "/api/v1/workouts/feedback",
+                json={
+                    "user_id": user_id, "workout_date": workout["date"], "status": "FULL",
+                    "workout_plan": workout, "session_rpe": 7, "rir": 2, "soreness": 1,
+                    "pain": 0, "fatigue": 2, "enjoyment": 8,
+                },
+            )
+            assert response.status_code == 201
+        dashboard = client.get(f"/api/v1/dashboard?user_id={user_id}").json()
+        assert dashboard["plan_adherence"]["planned"] == 4
+        assert dashboard["plan_adherence"]["completed"] == 4
+        assert dashboard["plan_adherence"]["percentage"] == 100.0
+        exported = client.get(f"/api/v1/users/{user_id}/data/export").json()
+        assert len(exported["progression_states"]) >= 1
+        assert len(exported["plan_executions"]) == 7

@@ -7,14 +7,14 @@ export function PlanCard({ workout }: { workout: DailyWorkout }) {
     <section className="plan-card panel">
       <div className="panel-heading">
         <div>
-          <p className="eyebrow">Today / {workout.date}</p>
+        <p className="eyebrow">今日 / {workout.date}</p>
           <h2>{workout.title}</h2>
         </div>
         <span className={`state-tag ${isRecovery ? "tag-blue" : "tag-lime"}`}>{isRecovery ? "RECOVERY" : `${workout.duration_minutes} MIN`}</span>
       </div>
       <div className="plan-focus"><span className="focus-line" />{workout.focus}</div>
       {isRecovery ? (
-        <div className="recovery-note"><span>↺</span><div><strong>Recovery is training.</strong><p>按计划恢复，今天不会中断你的执行记录。</p></div></div>
+        <div className="recovery-note"><span>↺</span><div><strong>恢复也是训练。</strong><p>按计划恢复，今天不会中断你的执行记录。</p></div></div>
       ) : (
         <div className="exercise-list">
           {workout.blocks.map((block, index) => (
@@ -27,8 +27,8 @@ export function PlanCard({ workout }: { workout: DailyWorkout }) {
         </div>
       )}
       <div className="plan-actions">
-        <Link href="/workout" className="button button-primary">{isRecovery ? "OPEN RECOVERY" : "START WORKOUT"}<span>↗</span></Link>
-        {!isRecovery && <span className="minimum-note">6 MIN minimum ready</span>}
+        <Link href="/workout" className="button button-primary">{isRecovery ? "打开恢复日" : "开始训练"}<span>↗</span></Link>
+        {!isRecovery && <span className="minimum-note">最小版本已准备 · 6 分钟</span>}
       </div>
     </section>
   );

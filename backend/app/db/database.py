@@ -6,6 +6,8 @@ import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
+CURRENT_SCHEMA_VERSION = 2
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -28,6 +30,9 @@ CREATE TABLE IF NOT EXISTS users (
     movement_pain TEXT NOT NULL DEFAULT '',
     abnormal_symptoms TEXT NOT NULL DEFAULT '',
     medical_exercise_restriction TEXT NOT NULL DEFAULT '',
+    exercise_chest_pain INTEGER NOT NULL DEFAULT 0,
+    fainting_or_dizziness INTEGER NOT NULL DEFAULT 0,
+    unusual_shortness_of_breath INTEGER NOT NULL DEFAULT 0,
     safety_status TEXT NOT NULL DEFAULT 'PENDING'
 );
 
@@ -79,7 +84,8 @@ CREATE TABLE IF NOT EXISTS training_cycles (
     goal TEXT NOT NULL,
     secondary_focus TEXT NOT NULL,
     weekly_plan TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    weekly_cardio_target_minutes INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS workout_sessions (
@@ -130,6 +136,48 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user_date
     ON workout_sessions(user_id, workout_date);
 CREATE INDEX IF NOT EXISTS idx_wellness_user_date
     ON wellness_logs(user_id, log_date);
+
+CREATE TABLE IF NOT EXISTS schema_meta (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    schema_version INTEGER NOT NULL
+);
+"""
+
+PROGRESSION_STATES_SCHEMA = """
+CREATE TABLE IF NOT EXISTS progression_states (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    exercise_id TEXT NOT NULL,
+    current_variation TEXT NOT NULL,
+    target_reps INTEGER,
+    target_sets INTEGER,
+    last_rpe REAL,
+    last_rir REAL,
+    decision TEXT NOT NULL DEFAULT 'MAINTAIN',
+    next_variable TEXT NOT NULL DEFAULT 'reps',
+    consecutive_successes INTEGER NOT NULL DEFAULT 0,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, exercise_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_progression_user
+    ON progression_states(user_id, updated_at);
+"""
+
+PLAN_EXECUTIONS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS plan_executions (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    cycle_id TEXT NOT NULL REFERENCES training_cycles(id) ON DELETE CASCADE,
+    plan_date TEXT NOT NULL,
+    planned_kind TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'DUE',
+    executed_at TEXT,
+    session_id TEXT REFERENCES workout_sessions(id) ON DELETE SET NULL,
+    PRIMARY KEY (user_id, cycle_id, plan_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_plan_executions_user_date
+    ON plan_executions(user_id, plan_date);
 """
 
 
@@ -165,9 +213,50 @@ class Database:
     def initialize(self) -> None:
         with self.connect() as connection:
             connection.executescript(SCHEMA)
-            columns = {row[1] for row in connection.execute("PRAGMA table_info(exercises)").fetchall()}
-            if "rom_rules" not in columns:
-                connection.execute("ALTER TABLE exercises ADD COLUMN rom_rules TEXT NOT NULL DEFAULT '{}'")
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_meta(id, schema_version) VALUES (1, 0)"
+            )
+            version_row = connection.execute(
+                "SELECT schema_version FROM schema_meta WHERE id = 1"
+            ).fetchone()
+            version = int(version_row[0]) if version_row else 0
+            if version < 1:
+                self._migrate_v1(connection)
+                version = 1
+                connection.execute(
+                    "UPDATE schema_meta SET schema_version = ? WHERE id = 1", (version,)
+                )
+            if version < 2:
+                connection.executescript(PROGRESSION_STATES_SCHEMA)
+                connection.executescript(PLAN_EXECUTIONS_SCHEMA)
+                version = 2
+                connection.execute(
+                    "UPDATE schema_meta SET schema_version = ? WHERE id = 1", (version,)
+                )
+            if version != CURRENT_SCHEMA_VERSION:
+                raise RuntimeError(f"unsupported database schema version {version}")
+
+    @staticmethod
+    def _migrate_v1(connection: sqlite3.Connection) -> None:
+        """Apply additive changes without replacing an existing user database."""
+
+        table_columns = {
+            table: {row[1] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()}
+            for table in ("users", "training_cycles", "exercises")
+        }
+        if "rom_rules" not in table_columns["exercises"]:
+            connection.execute("ALTER TABLE exercises ADD COLUMN rom_rules TEXT NOT NULL DEFAULT '{}'")
+        for column in (
+            "exercise_chest_pain",
+            "fainting_or_dizziness",
+            "unusual_shortness_of_breath",
+        ):
+            if column not in table_columns["users"]:
+                connection.execute(f"ALTER TABLE users ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0")
+        if "weekly_cardio_target_minutes" not in table_columns["training_cycles"]:
+            connection.execute(
+                "ALTER TABLE training_cycles ADD COLUMN weekly_cardio_target_minutes INTEGER NOT NULL DEFAULT 0"
+            )
 
     def session(self) -> Iterator[sqlite3.Connection]:
         connection = self.connect()

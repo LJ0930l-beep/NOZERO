@@ -1,6 +1,6 @@
 {
-  "name": "nozeero-frontend",
-  "version": "1.0.0-alpha.0",
+  "name": "nozero-frontend",
+  "version": "1.0.0-rc.2",
   "private": true,
   "scripts": {
     "dev": "next dev",

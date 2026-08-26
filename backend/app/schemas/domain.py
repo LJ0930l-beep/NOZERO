@@ -29,6 +29,9 @@ class SafetyScreening(BaseModel):
     movement_pain: str = ""
     abnormal_symptoms: str = ""
     medical_exercise_restriction: str = ""
+    exercise_chest_pain: bool = False
+    fainting_or_dizziness: bool = False
+    unusual_shortness_of_breath: bool = False
 
 
 class OnboardingRequest(BaseModel):
@@ -84,6 +87,8 @@ class ExerciseResponse(BaseModel):
     version: str
     source: str
     review_status: str
+    selection_status: Literal["SAFE", "CAUTION"] = "SAFE"
+    selection_reasons: list[str] = Field(default_factory=list)
 
 
 class AssessmentRequest(BaseModel):
@@ -130,6 +135,9 @@ class DailyWorkout(BaseModel):
     blocks: list[WorkoutBlock]
     short_workout: list[WorkoutBlock] = Field(default_factory=list)
     minimum_workout: list[WorkoutBlock]
+    week_number: int = 1
+    phase: str = "Adaptation / Base"
+    cardio_target_minutes: int = 0
 
 
 class PlanResponse(BaseModel):
@@ -140,6 +148,8 @@ class PlanResponse(BaseModel):
     goal: str
     secondary_focus: str
     weekly_plan: list[DailyWorkout]
+    weekly_cardio_target_minutes: int = 0
+    cardio_minutes_completed: float = 0
 
 
 class WorkoutFeedbackRequest(BaseModel):
@@ -162,6 +172,7 @@ class WorkoutSessionResponse(BaseModel):
     status: WorkoutStatus
     xp: int
     next_recommendation: str
+    recovery_status: str = "NORMAL"
 
 
 class CoachRequest(BaseModel):
@@ -223,6 +234,9 @@ class DashboardResponse(BaseModel):
     discipline_level: str
     xp: int
     next_workout: DailyWorkout | None = None
+    plan_adherence: dict[str, int | float] = Field(default_factory=dict)
+    activity_consistency: dict[str, dict[str, int | float]] = Field(default_factory=dict)
+    aerobic_dose: dict[str, int | float] = Field(default_factory=dict)
 
 
 class WellnessCheckinRequest(BaseModel):

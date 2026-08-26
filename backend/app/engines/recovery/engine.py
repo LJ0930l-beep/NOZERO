@@ -22,6 +22,8 @@ def assess_recovery(
     training_frequency: int = 0,
     completion_rate: float = 1.0,
     enjoyment: int | None = None,
+    muscle_group_exposure: dict[str, float] | None = None,
+    pattern_exposure: dict[str, float] | None = None,
 ) -> RecoveryResult:
     pain_value = pain or 0
     soreness_value = soreness or 0
@@ -56,6 +58,18 @@ def assess_recovery(
         )
     if weekly_volume_minutes >= 240:
         return RecoveryResult("REDUCED", "recent weekly volume is high", "cap the next session and prioritize recovery")
+    if pattern_exposure and max(pattern_exposure.values(), default=0) >= 8:
+        return RecoveryResult(
+            "REDUCED",
+            "one movement pattern has high recent exposure",
+            "change emphasis and avoid repeating the highest-loaded pattern",
+        )
+    if muscle_group_exposure and max(muscle_group_exposure.values(), default=0) >= 12:
+        return RecoveryResult(
+            "REDUCED",
+            "one muscle group has high recent set exposure",
+            "reduce the next dose for the most-exposed muscle group",
+        )
     if muscle_group_exposure_minutes >= 120 and training_frequency >= 3:
         return RecoveryResult(
             "REDUCED",

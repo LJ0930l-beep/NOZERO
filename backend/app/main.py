@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint for NOZEERO."""
+"""FastAPI application entrypoint for NO ZERO."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ from pose.counters.state_machine import RepCounter
 from pose.models import CalibrationInput, Landmark
 from pose.service import PoseService
 
-logger = logging.getLogger("nozeero.api")
+logger = logging.getLogger("nozero.api")
 
 
 def _seed_if_empty(repository: SQLiteRepository) -> None:
@@ -71,12 +71,12 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         _seed_if_empty(active_repository)
-        logger.info("NOZEERO API initialized with database %s", active_repository.database.database_path)
+        logger.info("NO ZERO API initialized with database %s", active_repository.database.database_path)
         yield
 
     app = FastAPI(
-        title="NOZEERO API",
-        version="1.0.0-alpha",
+        title="NO ZERO API",
+        version="1.0.0-rc2",
         description="Local-first, safety-first indoor training system.",
         lifespan=lifespan,
     )
@@ -99,7 +99,7 @@ def create_app(
 
     @app.get("/api/v1/health")
     def health() -> dict[str, str]:
-        return {"status": "ok", "service": "nozeero-api", "version": app.version}
+        return {"status": "ok", "service": "nozero-api", "version": app.version}
 
     @app.post("/api/v1/onboarding", status_code=201)
     def onboarding(request: OnboardingRequest) -> dict[str, Any]:

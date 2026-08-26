@@ -1,12 +1,12 @@
-# NOZEERO
+# NO ZERO
 
-NOZEERO is a local-first indoor training system for healthy adults aged 18–64. It combines deterministic training rules, safety and recovery gates, a plan-derived minimum workout, local Qwen coaching, manual-first workout execution, and conservative pose-analysis contracts.
+NO ZERO is a local-first indoor training system for healthy adults aged 18–64. It combines deterministic training rules, safety and recovery gates, a plan-derived minimum workout, local Qwen coaching, manual-first workout execution, and conservative pose-analysis contracts.
 
-The repository name is intentionally `NOZEERO` at `D:\RJ\codex\NOZEERO`. It is a standalone project with its own Git history, dependencies, database, and configuration.
+The local project directory is intentionally `NOZEERO` at `D:\RJ\codex\NOZEERO`; the product and code package are `NO ZERO` / `nozero`. It is a standalone project with its own Git history, dependencies, database, and configuration.
 
 ## Current version
 
-`1.0.0` — released on 2026-08-26. The core onboarding → assessment → 28-day plan → full/short/minimum workout feedback → XP/streak/dashboard/reassessment path is implemented, tested, clean-installable, and published to GitHub.
+`1.0.0-rc2` — V1 acceptance fixes on top of the immutable `v1.0.0` release. The core onboarding → assessment → 28-day plan → feedback → XP/plan-adherence/dashboard/reassessment path is implemented and regression-tested.
 
 ## Features
 
@@ -17,7 +17,8 @@ The repository name is intentionally `NOZEERO` at `D:\RJ\codex\NOZEERO`. It is a
 - Movement-pattern coverage across push, pull, squat, lunge, hinge, hip extension, core flexion, anti-extension, anti-rotation, lateral core, cardio, and mobility; assessment levels cap difficulty and recent recovery adjusts dose.
 - Progression, recovery, and safety engines independent from the language model.
 - FULL, RESCUE/SHORT, MINIMUM, RECOVERY, and ZERO execution states; rescue and minimum sessions are derived from the original plan, and recovery preserves streaks.
-- 7/28/90-day consistency, XP, streaks, and separate discipline levels.
+- Actual-date 7/28/90-day activity consistency, due-plan adherence, XP, streaks, and separate discipline levels.
+- Persisted progression state, primary/secondary muscle-set load, recent pattern exposure, and goal-aware weekly aerobic dose.
 - Local Ollama/Qwen boundary with structured output validation and deterministic fallback.
 - Manual workout timer and optional local camera preview; raw video is not persisted by default.
 - Squat/push-up geometry contracts, calibration checks, confidence states, `UNABLE_TO_DETERMINE` behavior, and an optional local OpenCV/MediaPipe adapter.
@@ -69,7 +70,7 @@ npm ci
 Set-Location ..
 ```
 
-If npm pauses on install scripts, review the pending scripts using the npm version installed on your machine. NOZEERO does not silently enable arbitrary third-party scripts.
+If npm pauses on install scripts, review the pending scripts using the npm version installed on your machine. NO ZERO does not silently enable arbitrary third-party scripts.
 
 ## Ollama / Qwen setup
 
@@ -155,10 +156,10 @@ NOZEERO/
 ## Known issues and deferred work
 
 - The API currently has no authentication; it is intended for a local single-user V1 alpha.
-- The browser camera route provides permission-safe local preview only. Python-side MediaPipe/OpenCV inference is available through `pose.adapters.mediapipe_adapter`; browser-side frame inference is intentionally deferred so raw video does not cross the local boundary.
+- The browser camera route provides permission-safe local preview only. Python-side MediaPipe/OpenCV inference is available through `pose.adapters.mediapipe_adapter`; browser-side automatic counting is explicitly downgraded in rc2 until a browser model bundle is selected.
 - Ollama/Qwen live invocation depends on a locally running model. It was verified in the development environment with `qwen3.5:9b`; an unavailable model falls back deterministically.
-- Playwright covers the demo Today, Workout, and Onboarding surfaces. Camera permission, responsive visual QA, and a full API-backed browser journey remain hardware/environment-dependent.
-- The GitHub repository is `https://github.com/LJ0930l-beep/NOZERO`; `main`, tag `v1.0.0`, and the GitHub Release are published. The browser camera remains preview-only by design until a browser-side model bundle is selected.
+- Playwright covers demo smoke pages plus the onboarding → assessment → plan → workout → feedback flow, the structured safety block, and minimum-workout execution. Browser camera inference remains preview-only by explicit product declaration.
+- The GitHub repository is `https://github.com/LJ0930l-beep/NOZERO`; the immutable `v1.0.0` release remains intact and the fixes are published as `v1.0.0-rc2`.
 
 ## Roadmap
 

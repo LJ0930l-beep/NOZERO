@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import date, timedelta
+from typing import Any
+
+from backend.app.engines.time_windows import due_plan_dates, parse_local_date
 
 SUCCESS_STATES = {"FULL", "MINIMUM", "RECOVERY"}
 XP_BY_STATUS = {"FULL": 100, "MINIMUM": 30, "RECOVERY": 20, "ZERO": 0}
@@ -61,6 +64,76 @@ def consistency(sessions: list[dict[str, object]], as_of: date | None = None) ->
             "percentage": round(completed / window * 100, 1),
         }
     return result
+
+
+def _plan_success(workout: dict[str, Any], status: str | None) -> bool:
+    if status in SUCCESS_STATES:
+        return True
+    return status in {None, "DUE"} and workout.get("kind") == "RECOVERY"
+
+
+def plan_adherence(
+    plan: list[dict[str, Any]],
+    executions: list[dict[str, Any]],
+    as_of: date | None = None,
+) -> dict[str, int | float]:
+    """Measure execution against due plan days, including unlogged recovery days."""
+
+    reference = as_of or date.today()
+    due = due_plan_dates(plan, reference)
+    status_by_date = {str(item.get("plan_date")): str(item.get("status")) for item in executions}
+    completed = sum(
+        _plan_success(workout, status_by_date.get(str(workout.get("date")))) for workout in due
+    )
+    recovery_days = sum(
+        _plan_success(workout, status_by_date.get(str(workout.get("date"))))
+        and workout.get("kind") == "RECOVERY"
+        for workout in due
+    )
+    zero_days = sum(status_by_date.get(str(workout.get("date"))) == "ZERO" for workout in due)
+    planned = len(due)
+    return {
+        "completed": int(completed),
+        "planned": planned,
+        "percentage": round(completed / planned * 100, 1) if planned else 0.0,
+        "recovery_days": int(recovery_days),
+        "zero_days": int(zero_days),
+    }
+
+
+def plan_streak(
+    plan: list[dict[str, Any]],
+    executions: list[dict[str, Any]],
+    as_of: date | None = None,
+) -> tuple[int, int]:
+    """Return current/longest streak over consecutive due plan days."""
+
+    reference = as_of or date.today()
+    due = due_plan_dates(plan, reference)
+    if not due:
+        return 0, 0
+    status_by_date = {str(item.get("plan_date")): str(item.get("status")) for item in executions}
+    success_dates = {
+        parse_local_date(workout.get("date"))
+        for workout in due
+        if _plan_success(workout, status_by_date.get(str(workout.get("date"))))
+    }
+    success_dates.discard(None)
+    cursor = parse_local_date(due[-1].get("date"))
+    current = 0
+    while cursor is not None and cursor in success_dates:
+        current += 1
+        cursor -= timedelta(days=1)
+    longest = 0
+    run = 0
+    for workout in due:
+        workout_date = parse_local_date(workout.get("date"))
+        if workout_date in success_dates:
+            run += 1
+            longest = max(longest, run)
+        else:
+            run = 0
+    return current, longest
 
 
 def discipline_level(total_xp: int) -> str:
